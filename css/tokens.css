@@ -1,0 +1,35 @@
+/* Mighty Miss Molly Mae — design tokens
+   Sampled from design/art-environment.png and design/art-character.png.
+   Authoritative per PRD §16.1. Do not hand-tune; re-sample the PNGs. */
+
+:root {
+  /* Pacific Spirit Regional Park */
+  --deep-forest-green: #2C3927;
+  --fern-green:        #4B563A;
+  --mossy-olive:       #6E6436;
+  --cedar-brown:       #6D5338;
+  --bark-gray:         #747165;
+  --wet-earth:         #4E402F;
+  --stone-gray:        #928A7E;
+  --mist-light:        #D6CBBA;
+  --sunlit-green:      #C4B487;
+
+  /* Molly Mae */
+  --molly-rust:        #7C4019;
+  --molly-copper:      #925624;
+  --molly-coat-mid:    #B47A44;
+  --molly-coat-light:  #CCA477;
+  --molly-cream:       #DAD0C2;
+  --molly-warm-gray:   #9C8C7A;
+  --molly-dark:        #4A3D32;
+
+  /* ground */
+  --paper:             #F0E9DF;
+  --paper-warm:        #F1E8D7;
+
+  /* semantic */
+  --ink:               var(--deep-forest-green);
+  --ink-soft:          var(--bark-gray);
+  --rule:              #D8D0C0;
+  --surface:           var(--paper);
+}

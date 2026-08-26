@@ -1,0 +1,50 @@
+{
+  "style": "Hand-painted animation background art in the sensibility of a traditional cel-animated feature film: watercolour and gouache washes, simplified expressive shapes, organic confident linework, soft atmospheric depth, restrained natural colour. Silhouette and posture carry the read rather than surface detail. Warm and inviting, clearly painted by hand, never photographic and never a hard-edged vector cartoon.",
+  "styleAnchor": "",
+  "backdrop": "#F0E9DF",
+  "source": "/Users/emh/Work/personal/mmmm/art/sheets/painted",
+  "output": "/Users/emh/Work/personal/mmmm/assets/painted",
+  "anchors": [],
+  "defaults": {
+    "model": "gpt-image-2",
+    "size": "1536x1024",
+    "quality": "high"
+  },
+  "kinds": {
+    "portrait": {
+      "frames": [
+        "neutral",
+        "happy",
+        "curious",
+        "alert"
+      ],
+      "poses": {
+        "neutral": "relaxed and unremarkable, head level and settled down onto the shoulders, mouth closed, eyes soft and half-lidded, looking calmly and directly at the viewer, ears hanging down, posture loose and low",
+        "happy": "mouth open in a relaxed pant with the tongue just visible, eyes soft and crinkled, head slightly raised, an unmistakably delighted dog, ears hanging down loose",
+        "curious": "head tilted distinctly to one side, brow furrowed, eyes bright and fixed on something just off frame, ears still hanging down but swivelled slightly forward at the base",
+        "alert": "head and neck stretched UP and forward, noticeably higher and further forward than the other frames, body leaning toward something distant and off to one side, utterly rigid and frozen mid-motion, mouth clamped shut, eyes wide with the whites just showing, staring hard at a point far off frame to her left -- NOT looking at the viewer. Ears still hang down. The alarm reads in the raised craning neck and the frozen forward lean, not in the ears."
+      },
+      "framing": "Head and shoulders only, centred, each head at the same size and the same height in the frame. Four heads in one evenly spaced row on a plain white background. The SAME individual dog in every frame: identical straight (never curly) reddish-copper coat, identical pale cream beard and muzzle, identical build and identical scale. Do not restyle the coat, do not change its colour, do not add curls between frames. Her ears ALWAYS hang downward, floppy and close against the head, in every single frame without exception. Never pricked, never upright, never erect, never standing up, never triangular terrier ears -- not even when she is alert or curious. An ear may swivel slightly forward at its base, but the ear itself still hangs down. She wears NOTHING: no collar, no harness, no leash, no tag, no bandana, no clothing, no accessories of any kind. Her bare neck fur is visible.",
+      "sheet": "molly-portraits",
+      "naming": "molly-{frame}",
+      "split": 4,
+      "size": "1536x1024"
+    },
+    "body": {
+      "frames": [
+        "walk",
+        "sit"
+      ],
+      "poses": {
+        "walk": "standing in full profile facing their own left, weight even on all four legs, tail carried in a relaxed upward curve, mid-walk stance, ears hanging down",
+        "sit": "sitting squarely on the haunches seen from the front, front legs straight, tail curled around to one side, looking directly at the viewer, ears hanging down"
+      },
+      "framing": "Full body, the whole dog visible, paws resting on an invisible ground line at the very bottom edge of the figure. Two dogs side by side in one row on a plain white background, both at the same scale. The SAME individual dog in every frame: identical straight (never curly) reddish-copper coat, identical pale cream beard and muzzle, identical build and identical scale. Do not restyle the coat, do not change its colour, do not add curls between frames. Her ears ALWAYS hang downward, floppy and close against the head, in every single frame without exception. Never pricked, never upright, never erect, never standing up, never triangular terrier ears -- not even when she is alert or curious. An ear may swivel slightly forward at its base, but the ear itself still hangs down. She wears NOTHING: no collar, no harness, no leash, no tag, no bandana, no clothing, no accessories of any kind. Her bare neck fur is visible.",
+      "sheet": "molly-body",
+      "naming": "molly-body-{frame}",
+      "split": 2,
+      "size": "1536x1024"
+    }
+  },
+  "_anchorDesc": "a mixed reference plate of four unrelated subjects in one row: a sword fern frond, a pileated woodpecker on a trunk, a moss-covered fallen log, and a weathered cedar boardwalk plank"
+}

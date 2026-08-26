@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Molly Mae — Style Bake-off</title>
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.55 ui-serif, Georgia, "Iowan Old Style", serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 96px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 28px; }
+  h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: .01em; }
+  .sub { color: var(--ink-soft); font-size: 14px; letter-spacing: .1em; text-transform: uppercase; }
+  h2 { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft);
+       margin: 44px 0 14px; padding-bottom: 7px; border-bottom: 1px solid var(--rule); }
+  p { max-width: 68ch; }
+  .note { font-size: 14px; color: var(--ink-soft); }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 22px 0 8px; }
+  button {
+    font: inherit; font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+    padding: 9px 15px; min-height: 44px; border: 1px solid var(--ink); border-radius: 3px;
+    background: transparent; color: var(--ink); cursor: pointer;
+  }
+  button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+  /* two-column style comparison */
+  .versus { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+  @media (max-width: 820px) { .versus { grid-template-columns: 1fr; } }
+  .col > h3 { font-size: 15px; margin: 0 0 2px; }
+  .col > .cap { font-size: 13px; color: var(--ink-soft); margin: 0 0 14px; }
+
+  /* sprite tiles */
+  .row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .tile { text-align: center; }
+  .tile .frame {
+    background: var(--mist-light); border: 1px solid var(--rule); border-radius: 3px;
+    display: grid; place-items: center; overflow: hidden;
+    width: var(--tile); height: var(--tile);
+  }
+  .tile img { max-width: 100%; max-height: 100%; display: block; }
+  .tile figcaption {
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-soft); margin-top: 6px;
+  }
+  body.hide-labels .tile figcaption { visibility: hidden; }
+  .missing {
+    color: var(--stone-gray); font-size: 10px; letter-spacing: .06em;
+    text-transform: uppercase; padding: 8px; line-height: 1.35;
+  }
+
+  /* scene test */
+  .scenes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap: 18px; }
+  .scene { position: relative; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden;
+           aspect-ratio: 9/16; background: var(--deep-forest-green); }
+  .scene img.bg { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .scene img.dog { position: absolute; left: 50%; bottom: 16%; transform: translateX(-50%);
+                   width: 34%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); }
+  .scene .tag { position: absolute; top: 8px; left: 8px; background: var(--deep-forest-green);
+                color: var(--paper); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+                padding: 4px 8px; border-radius: 2px; }
+  .scene .actions { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 6px;
+                    padding: 8px; background: linear-gradient(transparent, rgba(0,0,0,.55) 45%); }
+  .scene .actions span { flex: 1; text-align: center; font-size: 11px; letter-spacing: .05em;
+                         background: rgba(240,233,223,.93); color: var(--ink); border-radius: 3px;
+                         padding: 10px 2px; }
+
+  /* judging */
+  ol.judge { max-width: 68ch; padding-left: 20px; }
+  ol.judge li { margin-bottom: 9px; }
+  table { border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  td, th { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; }
+  th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 400; }
+  .sw { width: 26px; height: 26px; border-radius: 2px; border: 1px solid rgba(0,0,0,.15); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Mighty Miss Molly Mae</h1>
+  <div class="sub">Style bake-off · PRD §16.3</div>
+</header>
+
+<p>Two candidate visual directions, same six assets each. Judge on legibility first; production
+cost is a tiebreaker, not a filter. Molly Mae is a <strong>straight-coat</strong> labradoodle in
+both — a curly coat is off-model.</p>
+
+<div class="controls">
+  <button id="size-phone"  aria-pressed="true">Phone size</button>
+  <button id="size-full"   aria-pressed="false">Full size</button>
+  <button id="labels"      aria-pressed="false">Hide labels</button>
+</div>
+<p class="note">Test 1 is the important one: at phone size with labels hidden, can you still tell
+the four states apart?</p>
+
+<h2>Expressed emotion set — the only four faces she has</h2>
+<div class="versus" id="portraits"></div>
+
+<h2>Body poses</h2>
+<div class="versus" id="bodies"></div>
+
+<h2>Scene test — findability against the park</h2>
+<p class="note">Backdrops are crops of <code>design/art-environment.png</code>, standing in until
+real environment art exists. The question is whether Molly reads without any outline or marker.</p>
+<div class="controls">
+  <button id="scene-a" aria-pressed="true">Candidate A in scene</button>
+  <button id="scene-b" aria-pressed="false">Candidate B in scene</button>
+</div>
+<div class="scenes" id="scenes"></div>
+
+<h2>Judging</h2>
+<ol class="judge">
+  <li>At phone size, can you tell the four states apart without labels?</li>
+  <li>Does she read as the <em>same dog</em> across all six assets?</li>
+  <li>Is she findable against the forest without any UI marker?</li>
+  <li>Does fear read as <code>alert</code> plus posture, given there is no frightened face?</li>
+  <li>Which style could plausibly be extended to a full set at this budget?</li>
+</ol>
+
+<h2>Approved palettes</h2>
+<table id="palette"></table>
+
+</div>
+<script>
+const STYLES = [
+  { id:"naturalist", name:"Candidate A — Naturalist field guide",
+    cap:"Observed rendering, fine linework, species-level specificity." },
+  { id:"painted", name:"Candidate B — Hand-painted animation",
+    cap:"Watercolour and gouache, simplified shapes, posture-first read." },
+];
+const FACES  = ["neutral","happy","curious","alert"];
+const BODIES = ["walk","sit"];
+
+function tile(style, file, label) {
+  return `<figure class="tile">
+    <div class="frame">
+      <img src="assets/${style}/${file}.png" alt="${label}"
+           onerror="this.replaceWith(Object.assign(document.createElement('div'),
+                    {className:'missing', textContent:'not yet\\ngenerated'}))">
+    </div>
+    <figcaption>${label}</figcaption>
+  </figure>`;
+}
+
+function column(style, files, labels) {
+  const cells = files.map((f,i) => tile(style.id, f, labels[i])).join("");
+  return `<div class="col"><h3>${style.name}</h3><p class="cap">${style.cap}</p>
+          <div class="row">${cells}</div></div>`;
+}
+
+document.getElementById("portraits").innerHTML =
+  STYLES.map(s => column(s, FACES.map(f => "molly-"+f), FACES)).join("");
+document.getElementById("bodies").innerHTML =
+  STYLES.map(s => column(s, BODIES.map(f => "molly-body-"+f), BODIES)).join("");
+
+const SCENES = [
+  ["bg-oldgrowth","Cedar Trail",  ["Follow","Wait","Call back"]],
+  ["bg-boardwalk","Boardwalk",    ["Encourage","Wait","Turn back"]],
+  ["bg-creek",    "Creek",        ["Let her swim","Keep walking"]],
+];
+let sceneStyle = "naturalist";
+function drawScenes() {
+  document.getElementById("scenes").innerHTML = SCENES.map(([bg,tag,acts]) => `
+    <div class="scene">
+      <img class="bg" src="assets/scene/${bg}.png" alt="">
+      <img class="dog" src="assets/${sceneStyle}/molly-body-walk.png" alt=""
+           onerror="this.remove()">
+      <span class="tag">${tag}</span>
+      <div class="actions">${acts.map(a=>`<span>${a}</span>`).join("")}</div>
+    </div>`).join("");
+  document.getElementById("scene-a").setAttribute("aria-pressed", sceneStyle==="naturalist");
+  document.getElementById("scene-b").setAttribute("aria-pressed", sceneStyle==="painted");
+}
+drawScenes();
+document.getElementById("scene-a").onclick = () => { sceneStyle="naturalist"; drawScenes(); };
+document.getElementById("scene-b").onclick = () => { sceneStyle="painted";    drawScenes(); };
+
+const PAL = [
+  ["Deep Forest Green","#2C3927"],["Fern Green","#4B563A"],["Mossy Olive","#6E6436"],
+  ["Cedar Brown","#6D5338"],["Bark Gray","#747165"],["Wet Earth","#4E402F"],
+  ["Stone Gray","#928A7E"],["Mist Light","#D6CBBA"],["Sunlit Green","#C4B487"],
+  ["Molly Rust","#7C4019"],["Molly Copper","#925624"],["Molly Coat Mid","#B47A44"],
+  ["Molly Coat Light","#CCA477"],["Molly Cream","#DAD0C2"],["Molly Warm Gray","#9C8C7A"],
+  ["Molly Dark","#4A3D32"],["Paper","#F0E9DF"],
+];
+document.getElementById("palette").innerHTML =
+  "<tr><th></th><th>Name</th><th>Hex</th></tr>" +
+  PAL.map(([n,h]) => `<tr><td><div class="sw" style="background:${h}"></div></td>
+                      <td>${n}</td><td><code>${h}</code></td></tr>`).join("");
+
+// controls
+const root = document.documentElement;
+function setSize(px, phoneOn) {
+  root.style.setProperty("--tile", px);
+  document.getElementById("size-phone").setAttribute("aria-pressed", phoneOn);
+  document.getElementById("size-full").setAttribute("aria-pressed", !phoneOn);
+}
+setSize("84px", true);
+document.getElementById("size-phone").onclick = () => setSize("84px", true);
+document.getElementById("size-full").onclick  = () => setSize("200px", false);
+const lab = document.getElementById("labels");
+lab.onclick = () => {
+  const on = document.body.classList.toggle("hide-labels");
+  lab.setAttribute("aria-pressed", on);
+  lab.textContent = on ? "Show labels" : "Hide labels";
+};
+</script>
+</body>
+</html>
