@@ -862,63 +862,66 @@ over:
 
 ## 16. Visual Direction
 
-### Open question: two candidate styles
+### Resolved: naturalist field guide
 
-The original PRD asked for a hand-painted Japanese animated-film sensibility. The approved
-concept art went somewhere else — detailed naturalistic illustration with the texture and
-labelled care of a field guide or a park interpretive sign.
+**Decided 2026-08-26 by prototype (§16.3). This question is closed.**
 
-Both are viable, and the choice is **deliberately unresolved**. It will be settled by
-prototyping Molly Mae's sprite set in each style and comparing them in an actual scene, not
-by argument in this document. See §16.3.
+The direction is **naturalistic illustration in the register of a field guide or a park
+interpretive sign**: careful observed rendering, fine graphite-and-ink linework, visible coat
+texture, accurate animal anatomy, soft directional light, restrained natural colour, on a
+warm paper-toned ground. The care and specificity of a naturalist's plate — not a cartoon,
+not a photograph.
 
-#### Candidate A — naturalist field guide
+This matches the approved concept art in `design/art-character.png` and
+`design/art-environment.png`, which are the references of record.
 
-The register of the approved concept art.
+#### Why, and the honest caveat
 
-- naturalistically rendered environments; specific, observed plant and animal life
-- warm paper-toned ground beneath the scene, as on the concept sheets
-- expressive but anatomically grounded dog animation
-- fine linework, closest to graphite and ink study in supporting detail
-- clean UI layered over the scene, with the restraint of interpretive signage
+The original PRD asked for a hand-painted Japanese animated-film sensibility. That was
+prototyped as a real alternative and **it is not achievable through the current asset
+pipeline.**
 
-Argument for it: the game's subject is *observation*. The player is asked to watch an animal
-closely and infer what it is thinking. Detailed rendering rewards looking, and species-level
-specificity makes the scent layer (§11) feel like it describes real things. Molly Mae is
-rendered with enough fidelity that ear position, beard, tail, and eye direction all read as
-separate signals — that is the whole communication budget in a game with no meters.
+Both candidates were generated at low and high quality from identical prompts differing only
+in style text. At low quality they were visibly distinct — the painted candidate was softer,
+flatter, more watercolour. At high quality **they converged into nearly the same image.**
+More compute makes the model render harder, and rendering pulls toward naturalism; a style
+string is not strong enough to hold it back.
 
-Argument against it: expensive to animate, unforgiving of inconsistency between assets, and
-at phone size much of the detail is simply not visible.
+The consequence matters more than the choice:
 
-#### Candidate B — hand-painted animation
+- The painted candidate's central argument — cheaper, simpler, faster to animate — is
+  unavailable here. That was the real case for it, and the tooling does not support it.
+- Naturalism is therefore partly a **default**, not purely a merit win. It is what this
+  pipeline produces when asked for careful illustration.
 
-The original §16 direction.
+The design case for naturalism is still genuine and independently sound:
 
-- painted watercolor/gouache-like environments
-- simplified, expressive dog animation
-- organic linework, soft atmospheric depth
-- silhouette and posture carry the read rather than surface detail
+- The game's subject is *observation*. The player watches an animal and infers intent.
+  Detailed rendering rewards looking; a simplified style would quietly signal there is less
+  to see.
+- Species-level specificity — sword fern, pileated woodpecker, old-growth bark — makes the
+  scent and perception layer (§11) feel like it describes real things.
+- Molly Mae renders with enough fidelity that ear position, beard, tail and eye direction
+  read as separate signals. In a game with no meters, that is the entire communication
+  budget.
 
-Argument for it: legible at phone size, far cheaper to animate, and posture-first
-communication matches a design where body language is the primary channel. Ambient motion
-(§16.2) is much easier to achieve convincingly.
+**Revisit this if** animation cost becomes the binding constraint, or if a human illustrator
+joins the project. A genuine painted direction remains viable — it just needs a purpose-built
+style anchor or a person, not a prompt.
 
-Argument against it: risks flattening the specificity the world is built on, and moves away
-from art that has already been approved.
+#### Binding constraints, whatever else changes
 
-Shared by both candidates, and not up for debate:
-
-- rich but restrained natural colors, sampled from the approved palettes below
+- rich but restrained natural colours, sampled from the approved palettes in §16.1
 - soft atmospheric depth; shafts of light through canopy as a primary mood tool
 - strong changes in lighting across weather and time
 - subtle environmental movement
-- Molly Mae stays a straight-coat copper labradoodle, on-model per §6.0
+- Molly Mae is a straight-coat copper labradoodle, on-model per §6.0
+- she wears no collar, harness or tags — matching the character sheet
 - the four expressed emotion states of §6.3, and no more
 
-**Deliberate exception in either style.** Dog-perception treatment (§16.4) may leave the
-established register, because scent has no naturalistic appearance. It should read as
-something added to an otherwise observed world.
+**Deliberate exception.** Dog-perception treatment (§16.4) may leave naturalism, because
+scent has no naturalistic appearance. It should read as something added to an otherwise
+observed world.
 
 ### 16.1 Approved palettes
 
@@ -972,26 +975,31 @@ Examples of ambient movement:
 - distant birds
 - changing shafts of light
 
-### 16.3 Style prototype (bake-off)
+### 16.3 Style prototype (bake-off) — completed
 
-Before committing, produce Molly Mae's core sprite set twice — once in Candidate A, once in
-Candidate B — and place both in the same static scene.
+Run on 2026-08-26. Six assets per candidate — the four expressed portraits plus a walking
+side view and a sitting view — generated from identical prompts at both low and high quality
+and compared in `bakeoff.html` at phone size, with labels hidden, and composited over park
+backdrops.
 
-Minimum set per style, enough to judge but not enough to be wasteful:
+Outcome: **Candidate A (naturalist) adopted**; see the decision above for the reasoning and
+the convergence caveat.
 
-- the four expressed portraits: `neutral`, `happy`, `curious`, `alert`
-- one full-body side view (the walk pose)
-- one full-body sitting view
+Findings worth keeping, because they will recur on every future asset:
 
-Judge them against questions the design actually depends on:
+1. **Ears drift upright.** Any pose language that lets an ear "lift" produces pricked
+   terrier ears and an off-model dog. The prompt must state that ears hang down in every
+   frame, without exception, *including when alert*.
+2. **`alert` collapses into `neutral`** unless posture carries it. Both are closed-mouth and
+   forward-facing. The fix is the one §6.3 prescribes — a craned neck and an off-frame stare,
+   not a new face. This is the practical proof that the four-state set can express fear.
+3. **The model adds accessories it was not asked for.** A collar and tag appeared
+   unprompted. Prompts must explicitly forbid them.
+4. **Findability is confirmed.** Composited over all three park backdrops, Molly reads
+   clearly with no outline or marker, validating the near-complementary palette note in
+   §16.1.
 
-1. At phone size, can you tell the four states apart without labels?
-2. Does she read as the *same dog* across all six assets?
-3. Is she findable against the forest without any UI marker?
-4. Does fear read as `alert` plus posture, given there is no frightened face (§6.3)?
-5. Which style could plausibly be extended to a full set at this project's budget?
-
-Question 5 is a tiebreaker, not a first filter. Pick on legibility first.
+`bakeoff.html` is retained as the record of this decision.
 
 ### 16.4 Dog perception treatment
 
@@ -1612,13 +1620,14 @@ The strongest success signal:
 
 ## 35. Development Phases
 
-### Phase 0 — Style bake-off
+### Phase 0 — Style bake-off ✅ complete (2026-08-26)
 
-Runs before or alongside Phase 1; it blocks nothing but must finish before Phase 4.
+Both candidate sprite sets were produced and compared in `bakeoff.html`. **Naturalist field
+guide adopted** (§16). The winning six assets are in `assets/molly/` and seed the real asset
+library; `assets/naturalist/` and `assets/painted/` are retained as the decision record.
 
-Produce the §16.3 sprite set in both candidate styles, drop both into one static scene, and
-pick a direction. Output is a decision recorded in §16 and §38, plus the winning sprite set
-as the seed of the real asset library.
+Asset pipeline lives in `art/` — one `art.json` per style, driving the spriteforge scripts.
+`art/naturalist/art.json` is now the live config for all new Molly Mae art.
 
 ### Phase 1 — Simulation prototype
 
@@ -1659,7 +1668,7 @@ Compare AI-assisted behavior against the local-only baseline.
 
 ### Phase 4 — Visual vertical slice
 
-Requires the Phase 0 style decision.
+Phase 0 style decision is done; this is unblocked.
 
 Add:
 
@@ -1744,9 +1753,6 @@ The inspector is essential because the shipped design deliberately hides most of
 
 Questions to resolve through prototyping rather than upfront specification:
 
-- **Which visual style?** Candidate A (naturalist field guide) or Candidate B (hand-painted
-  animation). Resolve via the §16.3 bake-off. This is the highest-priority open question,
-  because asset production cannot start until it is answered.
 - How frequently should meaningful decisions occur?
 - How long should an average walk last?
 - Does game time match real time?
@@ -1766,6 +1772,9 @@ Questions to resolve through prototyping rather than upfront specification:
 - ~~Should the dog begin as a puppy or young adult?~~ **Young adult**, matching the concept
   art. Life stages (§13) remain a post-MVP system.
 - ~~What park is this?~~ **Pacific Spirit Regional Park**, Vancouver (§10).
+- ~~Which visual style?~~ **Naturalist field guide** (§16), decided 2026-08-26 by prototype.
+  The hand-painted alternative proved unreachable through the current pipeline; see the
+  caveat in §16, which is worth reading before anyone reopens this.
 
 ---
 

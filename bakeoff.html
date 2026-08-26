@@ -78,6 +78,8 @@
   td, th { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; }
   th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 400; }
   .sw { width: 26px; height: 26px; border-radius: 2px; border: 1px solid rgba(0,0,0,.15); }
+  .verdict { border-left: 3px solid var(--deep-forest-green); background: rgba(44,57,39,.05);
+             padding: 14px 18px; margin: 22px 0; max-width: 68ch; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -88,9 +90,18 @@
   <div class="sub">Style bake-off · PRD §16.3</div>
 </header>
 
-<p>Two candidate visual directions, same six assets each. Judge on legibility first; production
-cost is a tiebreaker, not a filter. Molly Mae is a <strong>straight-coat</strong> labradoodle in
-both — a curly coat is off-model.</p>
+<div class="verdict">
+  <strong>Decided 26 Aug 2026 — Candidate A (naturalist field guide).</strong>
+  Kept as the record of that decision; see PRD §16.
+  <br><br>
+  The two candidates <em>converged</em> at high quality. At low quality B was visibly softer
+  and flatter; more compute made the model render harder, and rendering pulls toward
+  naturalism. B's central argument — cheaper and simpler to animate — turned out to be
+  unavailable through this pipeline, so A is partly a default rather than purely a merit win.
+  Worth reading §16 before reopening this.
+</div>
+<p>Six assets per candidate. Molly Mae is a <strong>straight-coat</strong> labradoodle in both —
+a curly coat is off-model — and wears no collar.</p>
 
 <div class="controls">
   <button id="size-phone"  aria-pressed="true">Phone size</button>
@@ -115,7 +126,7 @@ real environment art exists. The question is whether Molly reads without any out
 </div>
 <div class="scenes" id="scenes"></div>
 
-<h2>Judging</h2>
+<h2>Judging criteria used</h2>
 <ol class="judge">
   <li>At phone size, can you tell the four states apart without labels?</li>
   <li>Does she read as the <em>same dog</em> across all six assets?</li>
