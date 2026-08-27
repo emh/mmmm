@@ -126,6 +126,16 @@ export class Animator {
     return (this.clips[this.current] || this.clips.stand).ground;
   }
 
+  /** What the sound needs to know: which gait, and how long its stride is. */
+  get gait() {
+    const c = this.clips[this.current];
+    return {
+      moving: c?.kind === "gait",
+      clip: this.current,
+      stride: c?.stride || 0,
+    };
+  }
+
   get isMoving() {
     return this.clips[this.current]?.kind === "gait";
   }

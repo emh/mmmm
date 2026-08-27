@@ -44,6 +44,36 @@ html, body {
   filter: blur(2.2px) brightness(1.08) saturate(.74) contrast(.94);
 }
 
+/*
+ * Haze at the tree line.
+ *
+ * The ground plane is finite and its top edge lands on the horizon, where
+ * #ground-fade opens at rgba(150,155,132,.98) -- a near-opaque slab. Directly
+ * above it was the backdrop at a quite different colour, so the two met in a
+ * hard horizontal step right across the frame at 56% height.
+ *
+ * This carries the same haze upward INTO the backdrop, ending at exactly the
+ * value #ground-fade begins with. Both reach full opacity AT the join and fade
+ * away from it in each direction: at 98% alpha two per cent of the difference
+ * between backdrop and ground still shows through, which is all a hard edge
+ * needs. At 100% there is nothing left to see there -- and what replaces it is the thing
+ * that was missing anyway: distance turning the far trees to mist.
+ *
+ * Its bottom is pinned to 44%, the ground wrap's height, so it tracks the
+ * horizon rather than being positioned to match it by hand.
+ */
+#horizon {
+  position: absolute; left: 0; right: 0; bottom: 44%;
+  height: 21%;
+  pointer-events: none;
+  background: linear-gradient(to bottom,
+    rgba(150,155,132,0) 0%,
+    rgba(150,155,132,.14) 32%,
+    rgba(150,155,132,.44) 60%,
+    rgba(150,155,132,.80) 83%,
+    rgba(150,155,132,1) 100%);
+}
+
 /* The ground is a real 3D plane hinged at the horizon. It must be its own
    element: when the trail was painted into the backdrop, pushing the backdrop
    back optically -- which is what makes it read as distance -- blurred the
@@ -78,7 +108,7 @@ html, body {
 #ground-fade {
   position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(to bottom,
-    rgba(150,155,132,.98) 0%, rgba(140,146,124,.9) 5%, rgba(120,128,105,.62) 14%,
+    rgba(150,155,132,1) 0%, rgba(140,146,124,.9) 5%, rgba(120,128,105,.62) 14%,
     rgba(100,110,88,.3) 28%, transparent 52%);
 }
 

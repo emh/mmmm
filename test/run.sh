@@ -19,6 +19,8 @@ node test/posture.mjs >/tmp/mm_posture.txt 2>&1 || { echo "FAIL posture"; tail -
 tail -1 /tmp/mm_posture.txt
 node test/junction.mjs >/tmp/mm_junction.txt 2>&1 || { echo "FAIL junction"; tail -4 /tmp/mm_junction.txt; fail=$((fail+1)); }
 tail -1 /tmp/mm_junction.txt
+node test/sound.mjs >/tmp/mm_sound.txt 2>&1 || { echo "FAIL sound"; tail -6 /tmp/mm_sound.txt; fail=$((fail+1)); }
+tail -1 /tmp/mm_sound.txt
 
 found=$(grep -l "ANTLER FOUND" /tmp/mm_s_*.txt 2>/dev/null | wc -l | tr -d ' ')
 echo "scenario: $n seeds, antler found in $found of them (discovery is meant to be uncertain)"

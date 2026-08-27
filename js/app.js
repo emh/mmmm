@@ -21,6 +21,7 @@ import { Trail } from "./world/trail.js";
 import { TrailMap } from "./world/trailmap.js";
 import { TrailPath } from "./ui/trailpath.js";
 import { assetList, preload } from "./ui/preload.js";
+import { Sound } from "./ui/sound.js";
 
 
 const TICK_MS = 1400;          // one decision beat; deliberately unhurried
@@ -103,11 +104,19 @@ async function boot() {
   sim.asking = null;          // the junction she is waiting on an answer at
 
   /*
+   * The forest. Silent until a gesture starts it -- browsers will not begin
+   * audio on their own, and nothing here is created before that.
+   */
+  sim.sound = new Sound();
+
+  /*
    * Gestures share the simulation path with the buttons: both produce a nudge
    * and let her own utility model choose (§2.1). So the dog learns the same
    * thing about the player either way (§9).
    */
   sim.gestures = new Gestures(root.querySelector("#scene"), (g) => {
+    sim.sound.start();      // the first gesture is what lets the sound begin
+
     /*
      * A sideways swipe answers her.
      *
@@ -269,6 +278,7 @@ function startAnimation() {
     sim.bend = sim.trail.bendAt();
     sim.heading = sim.trail.turn;
 
+    sim.sound.update(dt, { ...sim.animator.gait, speed: sim.speed });
     sim.corridor.update(dt, sim.speed, sim.yaw, sim.bend, sim.travelled);
     sim.path.draw(sim.travelled, sim.yaw, sim.bend, sim.trail.ghosts(), sim.trail.visibleTo);
     placeDog(root, sim, clock);
@@ -371,6 +381,7 @@ function bindControls() {
 
   // §22: persist on visibility change, and stop simulating in the background.
   addEventListener("visibilitychange", () => {
+    sim.sound?.setPaused(document.hidden);
     if (document.hidden) { stop(); stopAnimation(); persist(); }
     else {
       sim.applyElapsed(Date.now() - sim.state.game.lastSimulationTimestamp);
