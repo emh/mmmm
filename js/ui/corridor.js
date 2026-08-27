@@ -117,6 +117,16 @@ export class Corridor {
       img.className = "scatter";
       img.draggable = false;
       img.alt = "";
+      /*
+       * Hidden until the first frame places it.
+       *
+       * Without this each sprite paints at its natural size in the top-left
+       * corner for the moment between the image decoding and the first
+       * animation frame -- so the scene visibly loads as a pile of huge
+       * pictures that then snap into position. It is not a slow download; it
+       * is unsized images being painted before they are placed.
+       */
+      img.style.display = "none";
       el.appendChild(img);
       /*
        * Spread the initial population down the corridor rather than spawning it
@@ -134,8 +144,26 @@ export class Corridor {
     }
     this.sort();
 
-    // Handrail posts, built once and shown only where a place has a rail.
+    /*
+     * Rails are built on demand rather than up front.
+     *
+     * No place in the MVP has one, and fourteen hidden <img> elements still
+     * fetch their source -- an asset downloaded on every boot for a place the
+     * game cannot currently reach.
+     */
     this.rails = [];
+    this.hasRail = false;
+
+  }
+
+  /** Whether this place has a handrail alongside the trail. */
+  setRail(on) {
+    this.hasRail = on;
+    if (!on) {
+      for (const r of this.rails) r.img.style.display = "none";
+      return;
+    }
+    if (this.rails.length) return;
     for (let i = 0; i < 14; i++) {
       const img = document.createElement("img");
       img.className = "scatter rail";
@@ -143,16 +171,9 @@ export class Corridor {
       img.alt = "";
       img.src = `${this.basePath}/${RAIL.file}`;
       img.style.display = "none";
-      el.appendChild(img);
+      this.el.appendChild(img);
       this.rails.push({ img, side: i % 2 ? 1 : -1, z: NEAR + Math.floor(i / 2) * RAIL.spacing });
     }
-    this.hasRail = false;
-  }
-
-  /** Whether this place has a handrail alongside the trail. */
-  setRail(on) {
-    this.hasRail = on;
-    if (!on) for (const r of this.rails) r.img.style.display = "none";
   }
 
   /**
@@ -217,6 +238,7 @@ export class Corridor {
 
       const img = item.img;
       if (screenW < 1.2 || groundY < 0) { img.style.display = "none"; continue; }
+      if (!img.complete || !img.naturalWidth) continue;   // not decoded yet
       img.style.display = "";
       img.style.width = `${screenW.toFixed(1)}px`;
 

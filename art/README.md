@@ -607,3 +607,11 @@ in toward the walkway.
 
 The same will be true of anything else built rather than grown — a bridge deck,
 a boardwalk edge, a fence line, a set of steps.
+
+
+---
+
+**See also:** `art/spriteforge-findings.md` — a consolidated write-up of the
+gaps we hit in the spriteforge skill and the tools built to work around them,
+with the measurements behind each one. That document is aimed at developing the
+skill; this one is aimed at making art for this game.

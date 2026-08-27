@@ -130,8 +130,21 @@ function serialise(state) {
  * step forward here rather than discarding a player's dog.
  */
 function migrate(save) {
-  if (save.game?.version !== 1) {
-    console.warn("unknown save version", save.game?.version, "-- starting fresh");
+  const version = save.game?.version;
+
+  /*
+   * v1 -> v2: physical needs were removed. Her memories, her model of the
+   * player and where she has been are all still valid, and those are the parts
+   * worth keeping -- discarding a save over a field that no longer exists
+   * would throw away exactly the progression §8 calls the point of the game.
+   */
+  if (version === 1) {
+    delete save.dog?.needs;
+    delete save.world?.bowlHasFood;
+    save.game.version = 2;
+    console.info("save migrated 1 -> 2 (physical needs removed)");
+  } else if (version !== 2) {
+    console.warn("unknown save version", version, "-- starting fresh");
     return null;
   }
   return repair(save);

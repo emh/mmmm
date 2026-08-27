@@ -31,10 +31,15 @@ export const GAIT_SPEC = {
 };
 
 /** How fast a transition plays, and how long it holds before returning. */
+/*
+ * `turn90` is not here on purpose. It was the off-trail pose -- side-on, nose in
+ * the verge -- and with that set parked nothing maps to it, so loading its
+ * frames would be a download for a pose the game cannot reach. The sprites are
+ * still on disk; add the line back with the behaviours.
+ */
 const TRANSITION_SPEC = {
   sit:     { fps: 9 },
   lie:     { fps: 9 },
-  turn90:  { fps: 10 },
   turn180: { fps: 10 },
   glance:  { fps: 8 },
 };
@@ -176,18 +181,22 @@ export function poseForBehaviour(state) {
   if (b === "look_at_player") return "glance";
 
   /*
-   * Something specific has her attention off the trail: she stops and turns
-   * side-on to work at it.
-   *
-   * `investigate_spot` is deliberately NOT in this list. It is her generic
-   * pottering-about behaviour and it fires constantly, so turning her ninety
-   * degrees each time made her pivot every few seconds like a weathervane. A
-   * pause reads as the same thing and costs nothing.
+   * The off-trail set is parked, so there is no side-on pose any more. When it
+   * comes back, so does the turn90 mapping that went with it.
    */
-  if (["investigate_scent", "dig", "greet", "splash", "drink", "eat", "play"].includes(b)) {
-    return "turn90";
+
+  /*
+   * Pottering follows the asked-for pace instead of standing still.
+   *
+   * `investigate_spot` fires constantly AND is one of the behaviours the "walk
+   * on" nudge encourages -- so mapping it to a standing pose meant asking her
+   * to walk frequently produced a dog standing still. It is sniffing as she
+   * goes, which looks like walking.
+   */
+  if (b === "investigate_spot") {
+    if (asked === "stop") return "stand";
+    return asked === "run" ? "trot" : "walk";
   }
-  if (b === "investigate_spot") return "stand";
 
   if (b === "chase") return "gallop";
 
@@ -201,10 +210,10 @@ export function poseForBehaviour(state) {
      */
     if (asked === "stop") return "stand";
     if (asked === "run") {
-      const willing = dog.needs.fatigue < 0.7 && dog.emotion.fear < 0.3;
-      return willing ? "gallop" : "trot";
+      // Only fear holds her back now. There is no tiredness to say no with.
+      return dog.emotion.fear < 0.3 ? "gallop" : "trot";
     }
-    const keen = dog.drives.exploration > 0.8 || dog.needs.exercise > 0.75;
+    const keen = dog.drives.exploration > 0.8 || dog.drives.play > 0.8;
     return keen ? "trot" : "walk";
   }
 

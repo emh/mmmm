@@ -37,16 +37,22 @@ export function chooseNextSpot(state, rng) {
     const mem = dog.memory.places[id];
     let weight = 1;
     if (mem) {
-      weight += mem.associations.interesting * 2.2;      // the pull of a good memory
-      weight -= mem.associations.frightening * 1.6;
-      weight += (1 - mem.familiarity) * .5;              // novelty
+      /*
+       * Memory dominates where she goes. §8 makes it the progression system --
+       * the park turning from unknown wilderness into a map of things that
+       * happened -- so a place where something real happened has to outweigh
+       * ordinary novelty by a clear margin, or the discovery never shows up in
+       * behaviour and the whole system is invisible.
+       */
+      weight += mem.associations.interesting * 3.4;
+      weight -= mem.associations.frightening * 2.0;
+      weight += (1 - mem.familiarity) * .45;             // novelty
     } else {
       weight += .8;                                      // never been -- worth a look
     }
     const draws = SPOTS[id].draws || {};
     for (const [drive, amount] of Object.entries(draws)) {
-      const level = dog.drives[drive] ?? dog.needs[drive] ?? 0;
-      weight += level * amount * .9;
+      weight += (dog.drives[drive] ?? 0) * amount * .9;
     }
     return Math.max(.05, weight);
   });
@@ -61,9 +67,12 @@ export function chooseNextSpot(state, rng) {
  * rebuild her confidence, and the arc §3 describes can never close.
  */
 export function maybeStartle(state, rng) {
-  if (state.dog.spot !== "plank_span") return null;
+  // Which spot is the crossing is the world's business, not this function's.
+  // It was the plank span; it is the fallen log now, and it will be both once
+  // the boardwalk comes back.
+  if (!SPOTS[state.dog.spot]?.crossing) return null;
 
-  const memory = state.dog.memory.places.plank_span;
+  const memory = state.dog.memory.places[state.dog.spot];
   const familiarity = memory ? memory.familiarity : 0;
   const safety = memory ? memory.associations.safe : .3;
 

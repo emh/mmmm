@@ -1,5 +1,11 @@
 /**
- * PRD §3 second scenario: the bridge.
+ * PRD §3 second scenario: the crossing.
+ *
+ * The venue moved. The boardwalk and its plank span are parked out of the MVP,
+ * so the set piece is the fallen log across the forest trail -- the same beat,
+ * something she has to commit to, in the one place the game still has. What is
+ * under test is unchanged: fear persists across approaches and wears off with
+ * repeated good experience.
  *
  *   "The dog becomes frightened by a loud noise while crossing an old wooden
  *    bridge. Future approaches to the bridge produce hesitation. The player
@@ -49,17 +55,17 @@ function frightPenalty(sim) {
 function crossingAppetite(sim, override) {
   let memory = sim.state.dog.memory;
   if (override) {
-    const here = placeMemory(memory, "plank_span");
+    const here = placeMemory(memory, "fallen_log");
     memory = {
       ...memory,
-      places: { ...memory.places, plank_span: { ...here, associations: { ...here.associations, ...override } } },
+      places: { ...memory.places, fallen_log: { ...here, associations: { ...here.associations, ...override } } },
     };
   }
   const calm = {
     ...sim.state,
     // Stand her at the planks with a clear head, so the only thing left moving
     // the number is what she remembers about this place.
-    dog: { ...sim.state.dog, spot: "plank_span", memory, emotion: { ...sim.state.dog.emotion, fear: 0 } },
+    dog: { ...sim.state.dog, spot: "fallen_log", memory, emotion: { ...sim.state.dog.emotion, fear: 0 } },
   };
   const ctx = perceive(calm, makeRng(1));
   const scored = scoreBehavior(BEHAVIORS.cross_crossing, ctx);
@@ -68,8 +74,7 @@ function crossingAppetite(sim, override) {
 
 function freshDog() {
   const sim = new Simulation(initialState(seed), makeRng(seed));
-  sim.travelTo("creek_boardwalk");
-  sim.arriveAt("creek_boardwalk", "plank_span");
+    sim.arriveAt("cedar_trail", "fallen_log");
   return sim;
 }
 
@@ -89,16 +94,15 @@ say(`startled                  face=${faceOnFear}  fear=${sim.state.dog.emotion.
 
 const afterFright = crossingAppetite(sim);
 const penaltyAfterFright = frightPenalty(sim);
-say(`after the fright          appetite: ${afterFright.toFixed(3)}  frightening=${placeMemory(sim.state.dog.memory,"plank_span").associations.frightening.toFixed(2)}  penalty=${penaltyAfterFright.toFixed(3)}`);
+say(`after the fright          appetite: ${afterFright.toFixed(3)}  frightening=${placeMemory(sim.state.dog.memory,"fallen_log").associations.frightening.toFixed(2)}  penalty=${penaltyAfterFright.toFixed(3)}`);
 
 // --- she walks elsewhere; a day passes; she comes back --------------------
-sim.travelTo("cedar_trail");
+sim.arriveAt("cedar_trail", "trailhead");
 for (let i = 0; i < 200; i++) sim.tick();
-sim.travelTo("creek_boardwalk");
-sim.arriveAt("creek_boardwalk", "plank_span");
+sim.arriveAt("cedar_trail", "fallen_log");
 const nextDay = crossingAppetite(sim);
 const penaltyNextDay = frightPenalty(sim);
-say(`next visit                appetite: ${nextDay.toFixed(3)}  frightening=${placeMemory(sim.state.dog.memory,"plank_span").associations.frightening.toFixed(2)}  penalty=${penaltyNextDay.toFixed(3)}`);
+say(`next visit                appetite: ${nextDay.toFixed(3)}  frightening=${placeMemory(sim.state.dog.memory,"fallen_log").associations.frightening.toFixed(2)}  penalty=${penaltyNextDay.toFixed(3)}`);
 
 // --- patient encouragement, over several visits ---------------------------
 /*
@@ -111,7 +115,7 @@ say(`next visit                appetite: ${nextDay.toFixed(3)}  frightening=${pl
 let crossings = 0;
 const VISITS = 12;
 for (let visit = 0; visit < VISITS; visit++) {
-  sim.arriveAt("creek_boardwalk", "plank_span");
+  sim.arriveAt("cedar_trail", "fallen_log");
   const before = sim.state.dog.hasCrossed;
   let t = 0;
   let didCross = false;
@@ -125,7 +129,7 @@ for (let visit = 0; visit < VISITS; visit++) {
 }
 const routine = crossingAppetite(sim);
 const penaltyRoutine = frightPenalty(sim);
-say(`after ${crossings} crossings over ${VISITS} visits, appetite: ${routine.toFixed(3)}  frightening=${placeMemory(sim.state.dog.memory,"plank_span").associations.frightening.toFixed(2)}  penalty=${penaltyRoutine.toFixed(3)}`);
+say(`after ${crossings} crossings over ${VISITS} visits, appetite: ${routine.toFixed(3)}  frightening=${placeMemory(sim.state.dog.memory,"fallen_log").associations.frightening.toFixed(2)}  penalty=${penaltyRoutine.toFixed(3)}`);
 
 // --- assertions -----------------------------------------------------------
 const fearIsAlert    = faceOnFear === "alert";

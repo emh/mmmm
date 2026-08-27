@@ -1,23 +1,17 @@
 /**
- * Physical needs and psychological drives (PRD §6.1, §6.2).
+ * Psychological drives (PRD §6.2).
  *
- * Values are 0..1 where 1 is "maximally pressing". They are internal and never
- * displayed as numbers (§2.2) -- the player reads them off behaviour.
+ * Physical needs -- hunger, thirst, fatigue, exercise -- have been cut. The
+ * game is "take Molly for a walk in the woods", and a meter that fills while
+ * you are not playing is the opposite of that: it turns a walk into an errand,
+ * and §36 already warned that virtual-pet chores must not dominate.
  *
- * Decay rates are deliberately slow. PRD §36 warns that virtual-pet chores must
- * not dominate; needs exist to create context for exploration, not to demand
- * constant optimisation.
+ * What is left is what makes her interesting to watch: curiosity, play, the
+ * pull of somewhere new, and the memory of what happened last time. None of it
+ * decays into an obligation.
  */
 
-/** Per simulated minute. */
-export const NEED_RATES = {
-  hunger:   1 / (10 * 60),   // pressing after ~10h
-  thirst:   1 / (6 * 60),
-  fatigue:  1 / (14 * 60),
-  exercise: 1 / (8 * 60),
-};
-
-/** Drives recover toward a personality-set baseline rather than draining. */
+/** Per simulated minute. Drives build toward a personality-set ceiling. */
 export const DRIVE_RATES = {
   curiosity:   1 / (3 * 60),
   social:      1 / (5 * 60),
@@ -27,24 +21,8 @@ export const DRIVE_RATES = {
   security:    1 / (6 * 60),
 };
 
-export function initialNeeds() {
-  return { hunger: .25, thirst: .20, fatigue: .15, exercise: .40 };
-}
-
 export function initialDrives() {
   return { curiosity: .55, social: .40, play: .45, exploration: .50, prey: .35, security: .10 };
-}
-
-/** Walking burns energy and satisfies the exercise drive. */
-export function advanceNeeds(needs, minutes, { walking }) {
-  const next = { ...needs };
-  const effort = walking ? 2.2 : 1;
-  next.hunger   = clamp(next.hunger   + NEED_RATES.hunger   * minutes * effort);
-  next.thirst   = clamp(next.thirst   + NEED_RATES.thirst   * minutes * effort);
-  next.fatigue  = clamp(next.fatigue  + NEED_RATES.fatigue  * minutes * effort);
-  next.exercise = clamp(next.exercise + (walking ? -NEED_RATES.exercise * minutes * 3
-                                                 :  NEED_RATES.exercise * minutes));
-  return next;
 }
 
 export function advanceDrives(drives, minutes, traits) {
@@ -53,12 +31,12 @@ export function advanceDrives(drives, minutes, traits) {
     const ceiling = driveCeiling(key, traits);
     next[key] = clamp(Math.min(ceiling, next[key] + DRIVE_RATES[key] * minutes));
   }
-  // Security is a special case: it is *relief-seeking*, and settles on its own.
+  // Security is relief-seeking, and settles on its own.
   next.security = clamp(next.security - DRIVE_RATES.security * minutes * 2);
   return next;
 }
 
-/** Personality caps how strongly a drive can build (§6.4 traits bias, not determine). */
+/** Personality caps how strongly a drive can build (§6.4: bias, not determine). */
 function driveCeiling(drive, traits) {
   switch (drive) {
     case "curiosity":   return .35 + traits.curiosity * .75;

@@ -14,7 +14,7 @@ import { initialMemory } from "./dog/memory.js";
 import { initialPlayerModel } from "./dog/learning.js";
 import { clamp } from "./dog/needs.js";
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export function initialState(seed) {
   const dog = initialDog();
@@ -191,7 +191,6 @@ function applyBehaviorResult(state, result) {
   let dog = state.dog;
   let world = state.world;
 
-  if (result.needs)   dog = { ...dog, needs: addClamped(dog.needs, result.needs) };
   if (result.drives)  dog = { ...dog, drives: addClamped(dog.drives, result.drives) };
   if (result.emotion) dog = { ...dog, emotion: addEmotion(dog.emotion, result.emotion) };
   if (result.crossed) dog = { ...dog, hasCrossed: true };
@@ -210,8 +209,10 @@ function applyCare(state, kind) {
   let world = state.world;
   switch (kind) {
     case "treat":
-      dog = { ...dog, needs: addClamped(dog.needs, { hunger: -.35 }),
-                      emotion: addEmotion(dog.emotion, { valence: +.3, arousal: +.1 }) };
+      dog = { ...dog, emotion: addEmotion(dog.emotion, { valence: +.35, arousal: +.15 }) };
+      break;
+    case "settle":
+      dog = { ...dog, emotion: addEmotion(dog.emotion, { arousal: -.3, fear: -.1 }) };
       break;
     case "comfort":
       dog = { ...dog, emotion: addEmotion(dog.emotion, { fear: -.35, arousal: -.2, valence: +.15 }) };

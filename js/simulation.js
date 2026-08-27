@@ -7,7 +7,7 @@
  */
 
 import { Events, reduce } from "./state.js";
-import { advanceNeeds, advanceDrives, clamp } from "./dog/needs.js";
+import { advanceDrives, clamp } from "./dog/needs.js";
 import { BEHAVIORS } from "./dog/behavior.js";
 import { selectBehavior } from "./dog/utility.js";
 import { perceive, salience, describePerception } from "./dog/perception.js";
@@ -45,11 +45,9 @@ export class Simulation {
 
     // 1. Needs and drives advance.
     const dog = this.state.dog;
-    const walking = !dog.behavior?.resting;
-    const needs = advanceNeeds(dog.needs, MINUTES_PER_TICK, { walking });
     const drives = advanceDrives(dog.drives, MINUTES_PER_TICK, dog.traits);
     const emotion = settleEmotion(dog.emotion, MINUTES_PER_TICK);
-    this.state = { ...this.state, dog: { ...this.state.dog, needs, drives, emotion } };
+    this.state = { ...this.state, dog: { ...this.state.dog, drives, emotion } };
 
     // 2. Memory decays continuously; consolidation is periodic (§8.2, §8.3).
     if (this.state.game.tick % 30 === 0) {
@@ -89,14 +87,6 @@ export class Simulation {
    */
   relocate() {
     const dog = this.state.dog;
-    const target = this.neededSpot();
-
-    if (target && target !== dog.spot) {
-      this.arriveAt(dog.place, target);
-      this.note(`Molly Mae goes to ${SPOTS[target].name}.`, "behavior");
-      this.decide();
-      return true;
-    }
 
     // If the player is encouraging her across, she works her way back toward the
     // planks. Without this the whole §3 confidence arc is unreachable: she
@@ -118,6 +108,8 @@ export class Simulation {
     const nothingHere = ctx.stimuli.length === 0 ? .25 : 0;
     // Standing at an uncrossed crossing is a moment, not a place to drift out of.
     if (SPOTS[dog.spot].crossing && !dog.hasCrossed) return false;
+    // Nor does she drift when she has been asked to stop.
+    if (this.state.interaction.pace === "stop") return false;
     if (this.rng.chance(restless * .22 + nothingHere)) {
       const next = chooseNextSpot(this.state, this.rng);
       if (next !== dog.spot) {
@@ -135,19 +127,7 @@ export class Simulation {
   }
 
   /** The spot that would satisfy her most pressing need, if one is pressing. */
-  neededSpot() {
-    const { needs, place } = this.state.dog;
-    const here = PLACES[place].spots;
-    const wants = [];
 
-    // She drinks where there is water; there is nowhere else to go for it.
-    if (needs.thirst > .40) wants.push(["creek_edge", needs.thirst], ["shallows", needs.thirst]);
-
-    const reachable = wants
-      .filter(([spot]) => here.includes(spot))
-      .sort((a, b) => b[1] - a[1]);
-    return reachable.length ? reachable[0][0] : null;
-  }
 
   refreshExpression() {
     this.expressed = expressedEmotion(this.state.dog.emotion, this.expressed);
@@ -203,9 +183,11 @@ export class Simulation {
       this.note(this.state.dog.hasCrossed
         ? "She trots across without breaking stride."
         : "She is across. She did not look back.", "good");
-      let m = associate(this.state.dog.memory, "plank_span", "frightening", -.26);
-      m = associate(m, "plank_span", "safe", +.22);
-      this.dispatch(Events.replaceMemory(m));
+      // Credit the crossing she actually made. Hardcoding the spot meant a
+      // second crossing anywhere else would build confidence in the first one.
+      const at = this.crossingSpot() || this.state.dog.spot;
+      let m = associate(this.state.dog.memory, at, "frightening", -.26);
+      m = associate(m, at, "safe", +.22);
       this.dispatch(Events.replaceMemory(m));
     }
 
@@ -296,6 +278,8 @@ export class Simulation {
 
   playerAction(action) {
     this.dispatch(Events.playerAction(action.id));
+    // An action implies a pace: asking her to follow means you are walking too.
+    if (action.pace) this.dispatch(Events.setPace(action.pace));
     this.dispatch(Events.replacePlayerModel(learnFromAction(this.state.playerModel, action.id)));
 
     if (action.care) this.dispatch(Events.care(action.care));
@@ -326,15 +310,20 @@ export class Simulation {
     const minutes = Math.min(realMs / 60000, 12 * 60);   // cap at 12h of change
     if (minutes < 1) return;
     const dog = this.state.dog;
-    const needs = advanceNeeds(dog.needs, minutes * .35, { walking: false });
     const drives = advanceDrives(dog.drives, minutes * .5, dog.traits);
     let memory = decayMemory(dog.memory, minutes);
     memory = consolidate(memory);
     this.state = {
       ...this.state,
-      dog: { ...dog, needs, drives, memory, emotion: settleEmotion(dog.emotion, minutes) },
+      dog: { ...dog, drives, memory, emotion: settleEmotion(dog.emotion, minutes) },
     };
-    if (minutes > 60) this.note("She gets up to meet you at the door.", "good");
+    // However long you were away, she is simply there when you come back:
+    // settled, calm, and ready to go. §18 -- companionship, not punishment.
+    this.state = {
+      ...this.state,
+      dog: { ...this.state.dog, behavior: null,
+             emotion: { arousal: .2, valence: .45, fear: 0 } },
+    };
   }
 
   get salience() {

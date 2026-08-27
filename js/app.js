@@ -10,13 +10,23 @@ import { Simulation, MINUTES_PER_TICK } from "./simulation.js";
 import { makeRng, freshSeed } from "./rng.js";
 import { perceive, salience } from "./dog/perception.js";
 import { ACTIONS } from "./ui/actions.js";
-import { render, placeDog, offTrailFor } from "./ui/render.js";
+import { render, placeDog, offTrailFor, attentionSide } from "./ui/render.js";
 import { Animator } from "./ui/animator.js";
 import { Gestures, gestureToIntent, intentToAction } from "./ui/gestures.js";
 import { Corridor } from "./ui/corridor.js";
 import { renderInspector } from "./ui/debug.js";
 import { save, load, clear } from "./storage.js";
 import { PLACES } from "./world/places.js";
+
+/**
+ * How wide the worn path is, as a percentage of the ground plane.
+ *
+ * Tuned by eye against the scene, not derived: the plane is much wider than the
+ * visible frame and is heavily foreshortened, so the relationship between this
+ * number and the path's apparent width is not one anyone should try to reason
+ * about from the geometry.
+ */
+const PATH_WIDTH = 14;
 
 const TICK_MS = 1400;          // one decision beat; deliberately unhurried
 const root = document;
@@ -67,6 +77,24 @@ async function boot() {
    * thing about the player either way (§9).
    */
   sim.gestures = new Gestures(root.querySelector("#scene"), (g) => {
+    /*
+     * A sideways swipe means her way, not a turning.
+     *
+     * There are no junctions in the MVP -- one trail, no forks -- so this axis
+     * is free to do the more interesting thing full time: if something off the
+     * trail has her attention, swiping toward it lets her go and look, and
+     * swiping the other way calls her off it. Two useful verbs from one axis,
+     * and which one you get is decided by what is actually in front of you
+     * rather than by a mode.
+     */
+    if (g.type === "turnleft" || g.type === "turnright") {
+      const dir = g.type === "turnleft" ? -1 : 1;
+      const side = attentionSide(sim.state, perceive(sim.state, sim.rng));
+      if (!side) return;
+      onAction(dir === side ? ACTIONS.let_explore : ACTIONS.call_back);
+      return;
+    }
+
     const intent = gestureToIntent(g, sim.state);
     if (!intent) return;
     sim.dispatch(Events.setPace(intent.pace));
@@ -139,21 +167,42 @@ function startAnimation() {
     const place = PLACES[sim.state.dog.place];
     sim.corridor.setScenery(place.scenery || "forest");
     if (ground && sim.groundKind !== place.ground) {
-      sim.groundKind = place.ground || "trail";
-      ground.style.backgroundImage = `url("assets/scene/ground-${sim.groundKind}.png")`;
-      // Texture scale is per surface: gravel and planks are much finer-grained
-      // than a packed-earth trail, and one global scale makes boardwalk planks
-      // come out the size of railway sleepers.
-      ground.style.backgroundSize = `${place.groundScale || 38}% auto`;
+      sim.groundKind = place.ground || "trail-earth";
+      // Ground textures are photographic and opaque, so they are JPEG.
+      /*
+       * The ground is two layers: an ordinary forest-floor surface that tiles
+       * both ways, and -- where the place has one -- a worn path laid over it.
+       *
+       * The path cannot be the surface itself. The ground plane is far wider
+       * than the visible scene, so a texture whose path covers a third of its
+       * width ends up covering the whole screen. As an overlay it can be
+       * scaled independently and kept to a believable width.
+       */
+      const surface = `url("assets/scene/ground-${sim.groundKind}.jpg")`;
+      const scale = `${place.groundScale || 38}% auto`;
+      if (place.path) {
+        ground.style.backgroundImage = `url("assets/scene/path-${place.path}.png"), ${surface}`;
+        ground.style.backgroundRepeat = "repeat-y, repeat";
+        ground.style.backgroundSize = `${PATH_WIDTH}% auto, ${scale}`;
+      } else {
+        ground.style.backgroundImage = surface;
+        ground.style.backgroundRepeat = "repeat";
+        ground.style.backgroundSize = scale;
+      }
     }
+
     sim.corridor.setRail(!!place.rail);
 
     sim.corridor.update(dt, sim.speed, sim.yaw);
     placeDog(root, sim, clock);
 
     if (ground) {
-      ground.style.backgroundPositionY = `${(sim.travelled * 34).toFixed(1)}px`;
-      ground.style.backgroundPositionX = `${(-sim.yaw * 120).toFixed(1)}px`;
+      // Both layers scroll together; the path stays centred on the trail.
+      const y = (sim.travelled * 34).toFixed(1);
+      const x = (-sim.yaw * 120).toFixed(1);
+      ground.style.backgroundPosition = PLACES[sim.state.dog.place].path
+        ? `center ${y}px, ${x}px ${y}px`
+        : `${x}px ${y}px`;
     }
     const backdrop = root.querySelector("#backdrop");
     if (backdrop) backdrop.style.transform = `translateX(${(-sim.yaw * 5).toFixed(2)}%)`;

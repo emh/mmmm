@@ -6,7 +6,7 @@
  * stay consistent with these numbers.
  */
 
-import { initialNeeds, initialDrives } from "./needs.js";
+import { initialDrives } from "./needs.js";
 
 export const MOLLY_TRAITS = {
   curiosity:    .84,   // billed: curious
@@ -22,7 +22,6 @@ export function initialDog() {
   return {
     name: "Molly Mae",
     traits: { ...MOLLY_TRAITS },
-    needs: initialNeeds(),
     drives: initialDrives(),
     emotion: { arousal: .25, valence: .35, fear: 0 },
     place: "cedar_trail",
@@ -60,18 +59,17 @@ export function expressedEmotion(emotion, previous) {
 }
 
 /**
- * Body-language signals. These are the *only* channel for anything the four
- * faces cannot say -- notably fear (§6.3) -- so they carry real weight.
+ * Body-language signals, for the inspector.
+ *
+ * These used to be rendered as words for the player. The animation carries all
+ * of it now (§2.2), so this is a development aid only.
  */
 export function bodySignals(dog) {
-  const { emotion, needs } = dog;
+  const { emotion } = dog;
   const signals = [];
   if (emotion.fear > .45) signals.push("tail_low", "ears_back", "weight_back");
   else if (emotion.fear > .2) signals.push("hesitating");
   if (emotion.arousal > .65) signals.push("tail_high", "ears_forward");
   if (emotion.valence > .5) signals.push("loose_wag");
-  if (needs.fatigue > .7) signals.push("slow_gait", "lagging");
-  if (needs.thirst > .7) signals.push("licking_lips");
-  if (needs.hunger > .75) signals.push("watching_you");
   return signals;
 }

@@ -22,20 +22,26 @@ import { STIMULI, SPOTS } from "../world/places.js";
  *   apply(ctx)    returns { needs?, drives?, emotion?, memory?, events? }
  */
 export const BEHAVIORS = {
-  drink: {
-    id: "drink", drive: "thirst", minutes: 2,
-    verb: () => "drinking",
-    candidate: (c) => c.hasStimulus("water") && c.needs.thirst > .12,
-    apply: () => ({ needs: { thirst: -.9 }, emotion: { valence: +.1 } }),
-  },
   rest: {
-    id: "rest", drive: "fatigue", minutes: 25,
+    id: "rest", drive: "settle", minutes: 18,
     verb: () => "lying down",
-    candidate: (c) => c.needs.fatigue > .35,
-    apply: (c) => ({
-      needs: { fatigue: -.45 },
-      emotion: { arousal: -.3, valence: +.05, fear: -.15 },
-    }),
+    /*
+     * She lies down because she is settled, not because she is tired. With no
+     * fatigue in the model this is a beat of contentment -- a dog flopping down
+     * in a patch of sun -- rather than a meter emptying.
+     */
+    /*
+     * She settles when she is calm -- or when you ask her to.
+     *
+     * Gating this on arousal alone meant the settle gesture silently did
+     * nothing in exactly the situation it is for: you tap to stop her, she
+     * turns and looks at you, and that little lift in arousal made lying down
+     * ineligible. Asking is itself a calming cue, so it should open the door
+     * rather than be refused at it.
+     */
+    candidate: (c) => (c.emotion.arousal < .45 && c.emotion.fear < .3) ||
+                      !!c.nudge?.encourage?.includes("rest"),
+    apply: () => ({ emotion: { arousal: -.15, valence: +.1, fear: -.15 } }),
   },
   investigate_scent: {
     id: "investigate_scent", drive: "curiosity", minutes: 5,
@@ -59,18 +65,34 @@ export const BEHAVIORS = {
     id: "investigate_spot", drive: "curiosity", minutes: 4,
     verb: (c) => `sniffing around ${c.spotName}`,
     candidate: () => true,
-    apply: (c) => ({
-      drives: { curiosity: -.25, exploration: -.20 },
-      emotion: { arousal: +.05 },
-      events: [{ spot: c.spot, type: "visited", valence: .05, importance: .12 }],
-    }),
+    /*
+     * Her general pottering, and -- while the off-trail set is parked -- the
+     * only way anything gets found. A scent she can reach from the path is
+     * worth less than one she can put her whole nose into, so discovery here
+     * is deliberately the slower road to the same place. The multiplier is set
+     * against how often this fires rather than against the old odds: pottering
+     * comes round far more than scent-work did, so the same per-attempt chance
+     * would turn a lucky find into a routine one.
+     */
+    apply: (c) => {
+      const scent = c.scents.length ? c.strongestScent : null;
+      const found = scent ? c.rng.chance(discoveryChance(c, scent) * .28) : false;
+      return {
+        drives: { curiosity: -.25, exploration: -.20 },
+        emotion: { arousal: +.05, valence: found ? +.12 : 0 },
+        discovered: found ? "antler" : null,
+        events: [{
+          spot: c.spot, type: found ? "investigated" : "visited", subject: scent,
+          valence: found ? .8 : .05, importance: found ? .9 : .12,
+        }],
+      };
+    },
   },
   chase: {
     id: "chase", drive: "prey", minutes: 3,
     verb: (c) => `chasing ${c.preyLabel}`,
     candidate: (c) => c.hasStimulus("squirrel") || c.hasStimulus("frog"),
     apply: (c) => ({
-      needs: { fatigue: +.06 },
       drives: { prey: -.75, play: -.2 },
       emotion: { arousal: +.4, valence: +.3 },
       events: [{ spot: c.spot, type: "chased", subject: c.preyId, valence: .45, importance: .35 }],
@@ -81,7 +103,6 @@ export const BEHAVIORS = {
     verb: (c) => (c.hasStimulus("stick") ? "tossing a stick around" : "bouncing about"),
     candidate: (c) => c.drives.play > .35,
     apply: (c) => ({
-      needs: { fatigue: +.05 },
       drives: { play: -.7 },
       emotion: { arousal: +.3, valence: +.45 },
       events: [{ spot: c.spot, type: "played", valence: .5, importance: .3 }],
@@ -92,7 +113,6 @@ export const BEHAVIORS = {
     verb: () => "wading in the creek",
     candidate: (c) => c.hasStimulus("water") && c.drives.play > .25,
     apply: () => ({
-      needs: { thirst: -.3, fatigue: +.05 },
       drives: { play: -.6 },
       emotion: { arousal: +.25, valence: +.5 },
       events: [{ spot: "creek_edge", type: "swam", valence: .6, importance: .45 }],
@@ -182,6 +202,26 @@ function discoveryChance(c, scentId) {
   chance += c.traits.persistence * .15;
   return Math.min(.75, chance);
 }
+
+/**
+ * Behaviours that take her off the trail. Parked for now.
+ *
+ * These are what "distracted" looks like from the camera: she stops, turns
+ * side-on, and works at something in the verge -- or bolts after it. The
+ * specs, their scoring and their memory effects are all untouched; they are
+ * simply not offered as candidates, so she never chooses one.
+ *
+ * She still has an inner life on the trail. `investigate_spot` is her sniffing
+ * as she goes, `look_at_player` is the check-in, and both still write place
+ * memory -- so the §32 chain (a place becomes interesting, and later she pulls
+ * toward it) runs exactly as before, just without her leaving the path.
+ *
+ * Flip OFF_TRAIL_ENABLED to bring the whole set back.
+ */
+export const OFF_TRAIL = new Set([
+  "investigate_scent", "chase", "play", "splash", "dig", "greet",
+]);
+export const OFF_TRAIL_ENABLED = false;
 
 export const behavior = (id) => BEHAVIORS[id];
 export const allBehaviors = () => Object.values(BEHAVIORS);

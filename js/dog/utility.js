@@ -15,24 +15,31 @@
  * trace is how we prove it wasn't.
  */
 
-import { BEHAVIORS } from "./behavior.js";
+import { BEHAVIORS, OFF_TRAIL, OFF_TRAIL_ENABLED } from "./behavior.js";
 import { placeMemory, stimulusBias } from "./memory.js";
 import { expectation } from "./learning.js";
 import { STIMULI, SPOTS } from "../world/places.js";
 
 /** How strongly each behaviour's governing drive is currently felt. */
 function driveWeight(spec, ctx) {
-  const { needs, drives, emotion } = ctx;
+  const { drives, emotion } = ctx;
   switch (spec.drive) {
-    case "hunger":     return .15 + needs.hunger * 2.4;
-    case "thirst":     return .15 + needs.thirst * 2.4;
-    case "fatigue":    return .10 + needs.fatigue * 2.6;
     case "curiosity":  return .20 + drives.curiosity * 1.6;
     case "play":       return .15 + drives.play * 1.5;
     case "prey":       return .10 + drives.prey * 1.9;
     case "social":     return .15 + drives.social * 1.4;
     case "exploration":return .20 + drives.exploration * 1.4;
     case "security":   return .10 + emotion.fear * 2.6 + drives.security * 1.2;
+    /*
+     * Settling is not a security behaviour.
+     *
+     * `rest` was weighted off `security`, which sits near zero unless she is
+     * frightened -- so lying down scored about 0.16 against looking at you at
+     * 1.0, and asking her to settle could never win however hard it nudged.
+     * What actually makes a dog lie down is being calm, so weight it off the
+     * absence of arousal.
+     */
+    case "settle":     return .25 + (1 - emotion.arousal) * 1.7;
     case "attachment": return .35 + (1 - ctx.traits.independence) * .9;
     default:           return 1;
   }
@@ -72,7 +79,6 @@ function environmentalRelevance(spec, ctx) {
     case "splash":  return ctx.hasStimulus("water") ? 1.6 : 0;
     case "play":    return ctx.hasStimulus("stick") ? 1.5 : .7;
     case "greet":   return ctx.hasStimulus("hiker") ? 1.4 : 1.0;
-    case "drink":   return ctx.hasStimulus("water") ? 1.4 : 0;
     case "rest":    return .9;
     case "cross_crossing": return here.crossing ? 1.2 : 0;
     default: {
@@ -124,8 +130,57 @@ function situationalModifier(spec, ctx) {
   // right now, not a single threshold -- so encouragement works progressively
   // as she settles, rather than flipping on at an arbitrary line.
   if (spec.id === "cross_crossing") m *= Math.max(.04, 1 - ctx.emotion.fear * 1.35);
-  // Exhaustion suppresses effortful behaviour.
-  if (ctx.needs.fatigue > .75 && ["chase", "play", "splash", "dig"].includes(spec.id)) m *= .3;
+  /*
+   * When the player has asked her to stop, she stops.
+   *
+   * Not absolutely -- she can still look back, settle, or notice something --
+   * but she does not wander off down the trail, and she does not start working
+   * at a scent. Without this "stop" only stopped her feet: she carried on
+   * choosing errands, so opening the app found her mid-investigation rather
+   * than waiting for you.
+   */
+  const TRAVELLING = ["follow_player", "cross_crossing"];
+  const ERRANDS = ["investigate_scent", "investigate_spot", "dig", "splash",
+                   "play", "greet", "chase"];
+
+  if (ctx.pace === "stop") {
+    if ([...TRAVELLING, ...ERRANDS].includes(spec.id)) m *= .12;
+    if (["wait", "look_at_player", "rest", "retreat"].includes(spec.id)) m *= 2.4;
+  } else {
+    /*
+     * Asked on, she goes on.
+     *
+     * The stop case was made authoritative and the walk case was not, so a
+     * scent at the trailhead simply outscored walking and she turned side-on
+     * the moment you asked her to move -- which reads as the game ignoring
+     * you. Asking is still an ask: a strong enough scent can win, and a run
+     * suppresses errands harder than a walk does, because a dog at a gallop is
+     * not stopping to sniff.
+     */
+    const run = ctx.pace === "run";
+    const asked = !!ctx.nudge?.encourage?.includes(spec.id);
+    /*
+     * The pace is a standing preference, not a leash.
+     *
+     * A hard damp on errands made her set off promptly and then walk past
+     * everything -- responsive, and dull. The sharp push to get her moving
+     * comes from the nudge the gesture fires, which expires after a few ticks;
+     * what remains is a mild lean toward carrying on, so a good scent can still
+     * stop her mid-walk. A run leans harder, because a dog at a gallop really
+     * is not stopping to sniff.
+     */
+    if (TRAVELLING.includes(spec.id)) m *= run ? 2.2 : 1.35;
+    /*
+     * A specific instruction beats the general pace.
+     *
+     * "Follow" and "let her explore" exist precisely to release her to a
+     * scent, and the walking pace was damping the very thing they asked for --
+     * so telling her to go and look made her *less* likely to. The pace is the
+     * default; a nudge naming this behaviour is the exception to it.
+     */
+    if (ERRANDS.includes(spec.id) && !asked) m *= run ? .35 : .82;
+    if (["wait", "rest"].includes(spec.id) && !asked) m *= .35;
+  }
 
   // A recent player instruction biases the next choice without forcing it (§2.1).
   if (ctx.nudge) {
@@ -136,13 +191,15 @@ function situationalModifier(spec, ctx) {
   if (ctx.lastBehavior === spec.id && spec.id !== "follow_player") m *= .35;
 
   // Needs that have become urgent override the ambient pull of the forest.
-  if (spec.id === "drink" && ctx.needs.thirst > .8) m *= 2.2;
 
   return m;
 }
 
 /** Score one behaviour, keeping every factor for the inspector. */
 export function scoreBehavior(spec, ctx) {
+  // Parked behaviours are refused before candidacy, so they never place and
+  // never show up in the inspector as a near-miss she was tempted by.
+  if (!OFF_TRAIL_ENABLED && OFF_TRAIL.has(spec.id)) return null;
   if (!spec.candidate(ctx)) return null;
 
   const factors = {

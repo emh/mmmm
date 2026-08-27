@@ -11,16 +11,39 @@
  * remember "the fern hollow" rather than "the whole trail".
  */
 
+/*
+ * MVP: one place.
+ *
+ * The park is a forest trail and nothing else. The other three places are still
+ * defined below in PARKED -- with their spots, their scenery sets, their ground
+ * textures and their art -- they are simply not in PLACES, so nothing loads
+ * them and nothing can navigate to them. Re-introducing one is a matter of
+ * moving its entry back up here.
+ *
+ * This is deliberate for the first release: the trail is the thing being got
+ * right, and a park you can leave splits the iteration across four rooms that
+ * are each half-finished.
+ */
 export const PLACES = {
   cedar_trail: {
     id: "cedar_trail",
     name: "Cedar Trail",
     blurb: "Packed earth through old growth.",
     art: "cedar-far",
-    ground: "trail", groundScale: 38, scenery: "forest",
-    connects: ["gravel_loop", "creek_boardwalk"],
-    spots: ["trailhead", "cedar_grove", "fern_hollow", "fallen_log", "junction"],
+    ground: "floor", groundScale: 30, path: "earth", scenery: "forest",
+    // Nowhere to go. There are no junctions, so there is nothing to connect.
+    connects: [],
+    spots: ["trailhead", "cedar_grove", "fern_hollow", "fallen_log", "bramble_edge"],
   },
+};
+
+/**
+ * Out of the MVP, kept intact for a later release.
+ *
+ * Nothing reads this. It exists so the work is not lost and so re-introducing
+ * an environment is a move rather than a rewrite.
+ */
+export const PARKED = {
   creek_boardwalk: {
     id: "creek_boardwalk",
     name: "Creek & Boardwalk",
@@ -32,21 +55,14 @@ export const PLACES = {
     connects: ["cedar_trail", "creek"],
     spots: ["boardwalk_start", "plank_span", "creek_edge", "far_bank"],
   },
-
-  /*
-   * Two more places, so the park stops being one corridor with a different
-   * floor. Each differs in all three of the things that make somewhere feel
-   * like somewhere: what is underfoot, what grows beside it, and what she can
-   * find there.
-   */
   gravel_loop: {
     id: "gravel_loop",
     name: "Gravel Loop",
     blurb: "A wide packed-gravel path, easy going.",
     art: "cedar-far",
-    ground: "gravel", groundScale: 26, scenery: "forest",
+    ground: "floor", groundScale: 30, path: "gravel", scenery: "forest",
     connects: ["cedar_trail", "creek"],
-    spots: ["loop_bend", "big_cedar", "bramble_edge", "bench_stop"],
+    spots: ["loop_bend", "big_cedar", "bench_stop"],
   },
   creek: {
     id: "creek",
@@ -77,12 +93,11 @@ export const SPOTS = {
                  stimuli: [{ id: "deer_scent", chance: .55 }, { id: "mushrooms", chance: .20 }] },
   fallen_log:  { id: "fallen_log",  name: "the fallen log",  place: "cedar_trail",
                  draws: { play: .6, curiosity: .4 },
-                 stimuli: [{ id: "stick", chance: .45 }, { id: "insects", chance: .25 }] },
-  junction:    { id: "junction",    name: "the trail junction", place: "cedar_trail",
-                 draws: { exploration: .6, social: .4 },
-                 stimuli: [{ id: "dog_scent", chance: .40 }, { id: "hiker", chance: .20 }],
-                 // The signposted routes of §10 -- visible, not walkable.
-                 signposts: ["North Trail", "Twin Falls", "Beach Trail"] },
+                 // The fear-and-confidence set piece (§3): a log she has to
+                 // commit to getting over, and a noise that can go wrong there.
+                 crossing: true,
+                 stimuli: [{ id: "stick", chance: .45 }, { id: "insects", chance: .25 },
+                           { id: "loud_noise", chance: .18 }] },
 
   // --- creek & boardwalk ------------------------------------------------
   boardwalk_start: { id: "boardwalk_start", name: "the start of the boardwalk", place: "creek_boardwalk",
@@ -94,20 +109,20 @@ export const SPOTS = {
                      crossing: true,
                      stimuli: [{ id: "loud_noise", chance: .30 }, { id: "hollow_planks", chance: .5 }] },
   creek_edge:      { id: "creek_edge",      name: "the creek edge", place: "creek_boardwalk",
-                     draws: { thirst: .8, play: .7, curiosity: .5 },
+                     draws: { play: .8, curiosity: .5 },
                      stimuli: [{ id: "water", chance: 1 }, { id: "frog", chance: .30 }] },
-  // --- gravel loop ------------------------------------------------------
+  // --- parked: gravel loop, creek, boardwalk ----------------------------
   loop_bend:    { id: "loop_bend",    name: "the bend in the loop", place: "gravel_loop",
                   draws: { exploration: .5 },
                   stimuli: [{ id: "dog_scent", chance: .45 }, { id: "hiker", chance: .30 }] },
   big_cedar:    { id: "big_cedar",    name: "the big cedar", place: "gravel_loop",
                   draws: { curiosity: .6, prey: .5 },
                   stimuli: [{ id: "squirrel", chance: .45 }, { id: "woodpecker", chance: .30 }] },
-  bramble_edge: { id: "bramble_edge", name: "the bramble edge", place: "gravel_loop",
+  bramble_edge: { id: "bramble_edge", name: "the bramble edge", place: "cedar_trail",
                   draws: { curiosity: .7, exploration: .5 },
                   stimuli: [{ id: "berries", chance: .40 }, { id: "rabbit_scent", chance: .35 }] },
   bench_stop:   { id: "bench_stop",   name: "the bench", place: "gravel_loop",
-                  draws: { social: .6, fatigue: .5 },
+                  draws: { social: .7, security: .4 },
                   stimuli: [{ id: "hiker", chance: .35 }, { id: "dog_scent", chance: .40 }] },
 
   // --- the creek --------------------------------------------------------
@@ -115,7 +130,7 @@ export const SPOTS = {
                   draws: { exploration: .6, curiosity: .5 },
                   stimuli: [{ id: "animal_tracks", chance: .50 }, { id: "stick", chance: .40 }] },
   shallows:     { id: "shallows",     name: "the shallows", place: "creek",
-                  draws: { thirst: .9, play: .8 },
+                  draws: { play: .9, curiosity: .4 },
                   stimuli: [{ id: "water", chance: 1 }, { id: "frog", chance: .40 }] },
   deep_pool:    { id: "deep_pool",    name: "the deep pool", place: "creek",
                   draws: { play: .7, curiosity: .5 },

@@ -68,7 +68,9 @@ tools/normalize.py  puts every pose on one canvas at one body scale
 js/ui/partsrig.js   generic cutout rig + the rear-view run driver
 tools/serve.py      dev server; versions imports so JS edits actually load
 tools/gen-cycle.sh  generate + cut + normalise an animation cycle, with metrics
-art/prompts/        holistic cycle prompts (see art/README.md)
+art/prompts/        holistic cycle and transition prompts
+art/spriteforge-findings.md   gaps found in the spriteforge skill, and what we
+                    built to work around them
 anim-test.html      animation bench — registration grid, overlay, playback
 css/app.css         portrait-first layout (§29)
 js/

@@ -20,7 +20,6 @@ export function renderInspector(el, sim) {
   el.innerHTML = `
     <h3>Inspector <span class="hint">seed ${s.game.seed} · tick ${s.game.tick}</span></h3>
 
-    ${section("Needs", bars(s.dog.needs))}
     ${section("Drives", bars(s.dog.drives))}
     ${section("Emotion", bars(s.dog.emotion) + row("expressed", sim.expressed))}
     ${section("Traits", bars(s.dog.traits))}

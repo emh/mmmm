@@ -13,6 +13,11 @@ for s in $seeds; do
   node test/crossing.mjs "$s" >/tmp/mm_c_$s.txt 2>&1 || { echo "FAIL crossing seed $s"; tail -8 /tmp/mm_c_$s.txt; fail=$((fail+1)); }
 done
 
+# Two responsiveness checks: the gestures must actually reach her.
+node test/responsive.mjs || fail=$((fail+1))
+node test/settle.mjs >/tmp/mm_settle.txt 2>&1 || { echo "FAIL settle"; tail -2 /tmp/mm_settle.txt; fail=$((fail+1)); }
+tail -1 /tmp/mm_settle.txt
+
 found=$(grep -l "ANTLER FOUND" /tmp/mm_s_*.txt 2>/dev/null | wc -l | tr -d ' ')
 echo "scenario: $n seeds, antler found in $found of them (discovery is meant to be uncertain)"
 echo "crossing: $n seeds"

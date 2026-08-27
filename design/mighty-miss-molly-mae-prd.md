@@ -226,19 +226,33 @@ Image models and human illustrators alike default to a curly apricot doodle, whi
 off-model. Treat `design/art-character.png` as the reference of record and check new art
 against the four portraits in it before accepting it.
 
-### 6.1 Physical needs
+### 6.1 Physical needs — **cut**
 
-Initial set:
+*Removed 2026-08-26.*
 
-- hunger
-- thirst
-- fatigue
-- exercise need
-- temperature / comfort
-- cleanliness / grooming
-- physical stress
+The game is "take Molly for a walk in the woods". You open your phone, she is
+there waiting, you swipe up and off you go. Physical needs work against that in
+a way tuning cannot fix: a meter that fills while you are not playing turns a
+walk into an errand and an absence into a debt. §36 already flagged that
+virtual-pet chores must not dominate — the honest conclusion is that they should
+not be present at all.
 
-These values are internal and normally hidden from the player.
+Gone: hunger, thirst, fatigue, exercise, and with them the food and water bowls,
+the `eat` and `drink` behaviours, and the home she kept them in (§31).
+
+What remains is what made her worth watching: the drives of §6.2, the memory of
+§8, her model of the player in §9, and the fear-and-confidence arc of §3. None
+of those decay into an obligation, and all of them are about *this walk* rather
+than about maintenance.
+
+Two knock-on changes worth recording:
+
+- **Lying down is contentment, not exhaustion.** `rest` is now chosen at low
+  arousal — a dog flopping into a patch of sun — rather than by an emptying
+  meter.
+- **Stopping means stopping.** With no needs to send her anywhere, the player's
+  asked-for pace is the strongest signal in the model. Asked to stop she waits;
+  she does not drift off down the trail or start working at a scent.
 
 ### 6.2 Psychological drives
 

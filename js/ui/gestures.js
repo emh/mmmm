@@ -9,10 +9,13 @@
  * The vocabulary is deliberately tiny, and each gesture means one thing that a
  * person would recognise:
  *
- *   swipe up     ask her on          (desktop: up arrow)
- *   swipe down   ask her to ease off  (desktop: down arrow)
- *   tap          stop                 (desktop: space)
- *   tap again    settle
+ *   swipe up      ask her on          (desktop: up arrow)
+ *   swipe down    ask her to ease off  (desktop: down arrow)
+ *   tap           stop                 (desktop: space)
+ *   tap again     settle
+ *   swipe sideways  "that way" -- toward whatever has her attention lets her
+ *                    go and look; away from it calls her off
+ *                                      (desktop: left / right arrows)
  *
  * Nothing here decides what she does. Each gesture sets the same kind of nudge
  * the buttons set, and her own utility model still chooses (§2.1, §7).
@@ -71,7 +74,8 @@ export class Gestures {
    * they are the same vocabulary reached a different way.
    */
   key(e) {
-    const KEYS = { ArrowUp: "sendon", ArrowDown: "recall", " ": "tap", Spacebar: "tap" };
+    const KEYS = { ArrowUp: "sendon", ArrowDown: "recall", " ": "tap", Spacebar: "tap",
+                   ArrowLeft: "turnleft", ArrowRight: "turnright" };
     const type = KEYS[e.key];
     if (!type) return;
     // Held keys must not spam the ladder, and space must not scroll the page.
@@ -121,6 +125,11 @@ export class Gestures {
      */
     if (Math.abs(dy) >= SWIPE_PX && Math.abs(dy) > Math.abs(dx)) {
       this.fire(dy < 0 ? "sendon" : "recall", p);
+    } else if (Math.abs(dx) >= SWIPE_PX) {
+      // Sideways means "that way". It only means anything when something off
+      // the trail already has her attention; the caller decides, so a swipe at
+      // an empty verge simply does nothing.
+      this.fire(dx < 0 ? "turnleft" : "turnright", p);
     } else if (dt <= TAP_MS || Math.hypot(dx, dy) < 12) {
       this.fire("tap", p);
     }
@@ -191,9 +200,11 @@ export function gestureToIntent(g, state) {
  */
 export function intentToAction(intent) {
   if (intent.settle) {
-    return { id: "rest_here", label: "settle",
+    // Asking her to settle is a calming signal in itself, so it takes the
+    // edge off her arousal as well as biasing the choice.
+    return { id: "rest_here", label: "settle", care: "settle", pace: "stop",
              nudge: { encourage: ["rest", "wait"],
-                      discourage: ["follow_player", "investigate_scent"], strength: 3.0 } };
+                      discourage: ["follow_player", "investigate_scent"], strength: 3.4 } };
   }
   switch (intent.pace) {
     case "stop":

@@ -13,10 +13,10 @@
  */
 
 import { PLACES, SPOTS, STIMULI } from "../world/places.js";
+import { OFF_TRAIL, OFF_TRAIL_ENABLED } from "../dog/behavior.js";
 
 /** The shared sprite canvas, in pixels. */
 const CANVAS = [380, 600];
-import { bodySignals } from "../dog/dog.js";
 import { project, depthLayer, MOLLY_CANVAS_W } from "./corridor.js";
 import { poseForBehaviour } from "./animator.js";
 
@@ -26,11 +26,32 @@ import { poseForBehaviour } from "./animator.js";
  * Orientation is the most legible channel at phone size -- more than any facial
  * expression -- so this mapping carries most of the game's communication.
  */
+/**
+ * Which side her attention is on: -1 left, +1 right, 0 nothing in particular.
+ *
+ * Reported whenever there is something at her spot worth attending to, not
+ * only once she has already broken off toward it -- otherwise the player can
+ * only release her after she has decided to go anyway, which is backwards.
+ */
+export function attentionSide(state, ctx) {
+  // Nothing to release her to while the off-trail set is parked, so report no
+  // side at all. A swipe then does nothing, rather than sending a nudge toward
+  // behaviours that cannot be chosen.
+  if (!OFF_TRAIL_ENABLED) return 0;
+  if (!ctx.strongestScent && !ctx.preyId) return 0;
+  const spot = state.dog.spot;
+  let h = 0;
+  for (let i = 0; i < spot.length; i++) h = (h * 31 + spot.charCodeAt(i)) | 0;
+  return ((h % 200) / 200 - 0.5) < 0 ? -1 : 1;
+}
+
 /** How far off the trail her attention has taken her, -1..1. */
 export function offTrailFor(state) {
   const behavior = state.dog.behavior?.id;
   if (!behavior) return 0;
-  if (["investigate_scent", "chase", "dig", "splash", "greet"].includes(behavior)) {
+  // Derived from the parked set rather than repeating it, so the two cannot
+  // drift apart. With the set parked this is always 0 and she stays centred.
+  if (OFF_TRAIL_ENABLED && OFF_TRAIL.has(behavior)) {
     // Deterministic per spot, so she does not jitter side to side while she
     // works at the same patch of ground.
     const spot = state.dog.spot;
@@ -48,7 +69,7 @@ export function render(root, sim) {
 
   const scene = root.querySelector("#scene");
   root.querySelector("#backdrop").style.backgroundImage =
-    `url("assets/scene/${place.art}.png")`;
+    `url("assets/scene/${place.art}.jpg")`;   // opaque backdrop -> jpeg
 
   renderDog(root, sim);
 }

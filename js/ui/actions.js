@@ -15,19 +15,27 @@ import { SPOTS, STIMULI } from "../world/places.js";
 const FIRM = 3.2;
 const SOFT = 1.9;
 
+/*
+ * Each action carries the pace it implies.
+ *
+ * Telling her to follow a scent means you are walking too; calling her back
+ * means you have stopped. Without this the pace ladder and the actions
+ * disagree -- an action would tell her to go and the standing pace would tell
+ * her to stay, and the standing pace wins.
+ */
 export const ACTIONS = {
-  follow:      { id: "follow",      label: "Follow",         nudge: { encourage: ["investigate_scent", "investigate_spot"], strength: FIRM } },
-  wait:        { id: "wait",        label: "Wait",           nudge: { encourage: ["wait", "look_at_player"], strength: SOFT } },
-  call_back:   { id: "call_back",   label: "Call her back",  nudge: { encourage: ["follow_player", "look_at_player"], discourage: ["investigate_scent", "chase"], strength: FIRM } },
-  let_explore: { id: "let_explore", label: "Let her explore",nudge: { encourage: ["investigate_scent", "investigate_spot", "dig"], strength: FIRM } },
-  encourage:   { id: "encourage",   label: "Encourage her",  nudge: { encourage: ["cross_crossing"], discourage: ["retreat"], strength: FIRM } },
-  turn_back:   { id: "turn_back",   label: "Turn back",      nudge: { encourage: ["retreat", "wait"], strength: FIRM } },
-  offer_treat: { id: "offer_treat", label: "Offer a treat",  care: "treat", nudge: { encourage: ["follow_player"], strength: SOFT } },
-  comfort:     { id: "comfort",     label: "Comfort her",    care: "comfort", nudge: { encourage: ["wait"], strength: SOFT } },
-  play:        { id: "play",        label: "Play with her",  nudge: { encourage: ["play", "splash"], strength: FIRM } },
-  let_swim:    { id: "let_swim",    label: "Let her swim",   nudge: { encourage: ["splash"], strength: FIRM } },
-  keep_going:  { id: "keep_going",  label: "Keep walking",   nudge: { encourage: ["follow_player", "investigate_spot"], strength: SOFT } },
-  rest_here:   { id: "rest_here",   label: "Rest here",      nudge: { encourage: ["rest"], strength: FIRM } },
+  follow:      { id: "follow",      label: "Follow",         nudge: { encourage: ["investigate_scent", "investigate_spot"], strength: FIRM }, pace: "walk" },
+  wait:        { id: "wait",        label: "Wait",           nudge: { encourage: ["wait", "look_at_player"], strength: SOFT }, pace: "stop" },
+  call_back:   { id: "call_back",   label: "Call her back",  nudge: { encourage: ["follow_player", "look_at_player"], discourage: ["investigate_scent", "chase"], strength: FIRM }, pace: "stop" },
+  let_explore: { id: "let_explore", label: "Let her explore",nudge: { encourage: ["investigate_scent", "investigate_spot", "dig"], strength: FIRM }, pace: "walk" },
+  encourage:   { id: "encourage",   label: "Encourage her",  nudge: { encourage: ["cross_crossing"], discourage: ["retreat"], strength: FIRM }, pace: "walk" },
+  turn_back:   { id: "turn_back",   label: "Turn back",      nudge: { encourage: ["retreat", "wait"], strength: FIRM }, pace: "stop" },
+  offer_treat: { id: "offer_treat", label: "Offer a treat",  care: "treat", nudge: { encourage: ["follow_player"], strength: SOFT }, pace: "stop" },
+  comfort:     { id: "comfort",     label: "Comfort her",    care: "comfort", nudge: { encourage: ["wait"], strength: SOFT }, pace: "stop" },
+  play:        { id: "play",        label: "Play with her",  nudge: { encourage: ["play", "splash"], strength: FIRM }, pace: "walk" },
+  let_swim:    { id: "let_swim",    label: "Let her swim",   nudge: { encourage: ["splash"], strength: FIRM }, pace: "walk" },
+  keep_going:  { id: "keep_going",  label: "Keep walking",   nudge: { encourage: ["follow_player", "investigate_spot"], strength: SOFT }, pace: "walk" },
+  rest_here:   { id: "rest_here",   label: "Rest here",      nudge: { encourage: ["rest"], strength: FIRM }, pace: "stop" },
 };
 
 /**

@@ -7,7 +7,7 @@
  * on, and the utility layer reads directly from this.
  */
 
-import { SPOTS, STIMULI } from "../world/places.js";
+import { SPOTS, STIMULI, PLACES } from "../world/places.js";
 import { placeMemory, stimulusBias } from "./memory.js";
 
 /** Build the decision context handed to the utility scorer. */
@@ -38,7 +38,6 @@ export function perceive(state, rng) {
 
     // --- dog ---------------------------------------------------------
     traits: dog.traits,
-    needs: dog.needs,
     drives: dog.drives,
     emotion: dog.emotion,
     memory: dog.memory,
@@ -49,6 +48,7 @@ export function perceive(state, rng) {
     playerModel: state.playerModel,
     playerSupported: state.interaction.playerSupported,
     nudge: state.interaction.nudge,
+    pace: state.interaction.pace,
 
     rng,
   };
@@ -58,11 +58,21 @@ function interestOf(state, stimulusId) {
   return STIMULI[stimulusId].interest + stimulusBias(state.dog.memory, stimulusId);
 }
 
-/** Where a frightened dog backs off to. */
+/**
+ * Where a frightened dog backs off to: the way she came.
+ *
+ * On a crossing that is the spot before it, and past a crossing it is back to
+ * the crossing itself. Derived from the place's own spot order rather than
+ * named spots, so it keeps working as the park changes.
+ */
 function retreatTarget(dog) {
-  if (dog.spot === "plank_span") return "boardwalk_start";
-  if (dog.spot === "far_bank") return "plank_span";
-  return "trailhead";
+  const spots = PLACES[dog.place]?.spots || [];
+  const i = spots.indexOf(dog.spot);
+  if (SPOTS[dog.spot]?.beyondCrossing) {
+    const crossing = spots.find((id) => SPOTS[id].crossing);
+    if (crossing) return crossing;
+  }
+  return i > 0 ? spots[i - 1] : spots[0] || "trailhead";
 }
 
 /**
