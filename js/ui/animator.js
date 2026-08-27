@@ -44,6 +44,19 @@ const TRANSITION_SPEC = {
   glance:  { fps: 8 },
 };
 
+/**
+ * The clips the Animator actually builds.
+ *
+ * Exported so the preloader fetches exactly these and nothing else. Reading
+ * the sprite manifests wholesale instead pulls in `turn90` -- 181 KB of frames
+ * for the off-trail pose, which has been parked since the off-trail behaviours
+ * were -- and, worse, would quietly go on doing so as clips come and go.
+ */
+export const CLIPS = ["stand", ...Object.keys(GAIT_SPEC), ...Object.keys(TRANSITION_SPEC)];
+
+/** Does a manifest key belong to `clip`? The Animator's own rule. */
+export const clipOwns = (key, clip) => key === clip || key.startsWith(clip + "-");
+
 export class Animator {
   constructor(container, clips) {
     this.el = container;
@@ -160,6 +173,35 @@ export class Animator {
 }
 
 /**
+ * Where a tap takes her next.
+ *
+ * A cycle rather than a ladder, so tapping always does something:
+ *
+ *   on her feet      she looks back, turns to face you, sits, or lies down
+ *   looking back     she stands, turns to face you, sits, or lies down
+ *   facing you       she turns back -- the one pose with a single way out
+ *   sitting/lying    she gets up
+ *
+ * Which of the options she picks is hers; that she responds is not. Before
+ * this, a tap asked the utility model to "settle", `rest` was the only
+ * behaviour that answered, and `rest` mapped to lying down -- so she never sat,
+ * and once down a tap had nothing left to say.
+ */
+export function nextPosture(current, rand = Math.random) {
+  /*
+   * Squared up and facing you is a one-way pose: she came round to look at
+   * you, and the only thing to do next is turn back. Letting her go from
+   * facing you straight to sitting or lying would skip the getting-up-and-round
+   * that makes the turn read as a turn.
+   */
+  if (current === "sit" || current === "lie" || current === "turn180") return "stand";
+  const options = current === "glance"
+    ? ["stand", "sit", "lie", "turn180"]
+    : ["glance", "sit", "lie", "turn180"];
+  return options[Math.floor(rand() * options.length)];
+}
+
+/**
  * What the simulation's chosen behaviour looks like.
  *
  * This is the whole point of the connection: she is not animated at random, she
@@ -172,10 +214,20 @@ export function poseForBehaviour(state) {
   const b = dog.behavior?.id;
   const asked = state.interaction.pace || "stop";
 
-  if (b === "rest") return "lie";
+  // Frightened: nothing the player asked for outranks this.
+  if (dog.emotion.fear > 0.42 || b === "retreat") return "turn180";
 
-  // Frightened or asked to wait: she stops and turns to face you.
-  if (dog.emotion.fear > 0.42 || b === "retreat" || b === "wait") return "turn180";
+  /*
+   * A posture set by tapping wins over whatever she would otherwise be doing.
+   *
+   * Without this the tap cycle could not work: `rest` maps to lying down and
+   * nothing at all mapped to sitting, so settling could only ever produce the
+   * same pose -- which is exactly what it did.
+   */
+  if (state.interaction.posture) return state.interaction.posture;
+
+  if (b === "rest") return "lie";
+  if (b === "wait") return "turn180";
 
   // The check-in.
   if (b === "look_at_player") return "glance";

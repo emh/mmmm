@@ -161,8 +161,9 @@ export class Gestures {
  *
  *   swipe up     ask her on -- stopped becomes a walk, a walk becomes a run
  *   swipe down   ask her to ease off -- a run becomes a walk
- *   tap          stop. She will usually turn and look at you
- *   tap again    settle -- sit or lie down, her choice which
+ *   tap          stop, and she looks back at you
+ *   tap again    round the posture cycle -- sit, lie down, stand, look back;
+ *                which one is hers, that she answers is not
  *
  * Four gestures on one axis, which is learnable in seconds and needs no label.
  * Everything is an *ask*: she can stop at a scent while you have asked for a
@@ -182,10 +183,13 @@ export function gestureToIntent(g, state) {
       return { pace: LADDER[Math.max(0, at - 1)] };
 
     case "tap":
-      // Stopped already? Then a tap asks her to settle. Which of sitting or
-      // lying down she picks is hers, and follows how tired she is.
-      if (pace === "stop") return { pace: "stop", settle: true };
-      return { pace: "stop" };
+      /*
+       * On the move, a tap stops her and she looks back. Already stopped, it
+       * moves her round the posture cycle -- which pose comes next is worked
+       * out where the dog's own randomness lives, not here.
+       */
+      if (pace === "stop") return { pace: "stop", cyclePosture: true };
+      return { pace: "stop", posture: "glance" };
 
     default:
       return null;

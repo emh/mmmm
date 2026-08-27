@@ -206,3 +206,29 @@ table.trace tr.chosen td { color: var(--sunlit-green); font-weight: 600; }
   /* The rig keeps breathing -- it is slow, and stillness would read as a bug --
      but app.js damps the motion amplitude. See Rig.update. */
 }
+
+/* ---------------------------------------------------------------- loading */
+/* The scene is not shown until it is whole. Everything below is the only thing
+   on screen until then, so it carries the whole first impression: no spinner,
+   no percentage, no word -- the same restraint as the rest of the interface. */
+#loading {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: #2C3927;
+  transition: opacity .45s ease;
+}
+#loading.done { opacity: 0; pointer-events: none; }
+#loading-bar {
+  width: 38%; max-width: 220px; height: 2px; margin-bottom: 22vh;
+  background: rgba(214, 222, 198, .16);
+  position: relative; overflow: hidden; border-radius: 2px;
+}
+#loading-bar::after {
+  content: ""; position: absolute; inset: 0 auto 0 0;
+  width: var(--progress, 0%);
+  background: rgba(214, 222, 198, .62);
+  transition: width .25s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  #loading, #loading-bar::after { transition: none; }
+}

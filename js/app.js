@@ -11,14 +11,16 @@ import { makeRng, freshSeed } from "./rng.js";
 import { perceive, salience } from "./dog/perception.js";
 import { ACTIONS } from "./ui/actions.js";
 import { render, placeDog, offTrailFor, attentionSide } from "./ui/render.js";
-import { Animator } from "./ui/animator.js";
+import { Animator, nextPosture } from "./ui/animator.js";
 import { Gestures, gestureToIntent, intentToAction } from "./ui/gestures.js";
 import { Corridor } from "./ui/corridor.js";
 import { renderInspector } from "./ui/debug.js";
 import { save, load, clear } from "./storage.js";
 import { PLACES } from "./world/places.js";
-import { bendAt, heading } from "./world/trail.js";
+import { Trail } from "./world/trail.js";
+import { TrailMap } from "./world/trailmap.js";
 import { TrailPath } from "./ui/trailpath.js";
+import { assetList, preload } from "./ui/preload.js";
 
 
 const TICK_MS = 1400;          // one decision beat; deliberately unhurried
@@ -31,11 +33,32 @@ let debugOn = new URLSearchParams(location.search).has("debug");
 /* ------------------------------------------------------------------ boot */
 
 async function boot() {
+  /*
+   * Start fetching the scene before anything else, and run it alongside the
+   * save load rather than after it -- they need nothing from each other.
+   */
+  const bar = document.querySelector("#loading-bar");
+  const assets = assetList().then((urls) => preload(urls, (n, total) => {
+    bar?.style.setProperty("--progress", `${(n / total * 100).toFixed(0)}%`);
+  }));
+
   const saved = await load();
   const seed = saved?.game?.seed ?? freshSeed();
   const rng = makeRng(saved?.game?.rngState ?? seed);
 
   sim = new Simulation(saved || initialState(seed), rng);
+
+  /*
+   * However the last session ended, she starts a new one standing on the trail.
+   * A second after the scene appears she turns to face you -- see `greet` --
+   * so the first thing that happens is her noticing you have arrived, rather
+   * than a pose that was already finished before you could see it.
+   *
+   * Forced rather than left to the saved state: what she happened to be doing
+   * when the app was last closed is not how you should find her.
+   */
+  sim.dispatch(Events.setPace("stop"));
+  sim.dispatch(Events.setPosture("stand"));
 
   if (saved) {
     // §18: bounded, gentle catch-up. Never punish absence.
@@ -50,10 +73,21 @@ async function boot() {
    * which is the right pace for decisions and completely wrong for motion --
    * driving the visuals off it is what made her look like a cardboard cutout.
    */
+  /*
+   * The park itself: a network of junctions and the trails between them,
+   * generated once from the game seed so the same walk always lays out the same
+   * park (§37). Its own random stream, kept apart from the scenery's, so a
+   * change to the map does not reshuffle every fern.
+   */
+  const mapRng = makeRng(sim.state.game.seed ^ 0x5eed).float;
+  sim.map = new TrailMap(mapRng);
+  sim.trail = new Trail(sim.map, mapRng);
+
   sim.corridor = new Corridor(root.querySelector("#corridor"), {
     count: 46,
     rand: makeRng(sim.state.game.seed).float,
     set: PLACES[sim.state.dog.place].scenery,
+    clearance: (s) => sim.trail.clearance(s),
   });
   sim.animator = await Animator.load(root.querySelector("#dog"));
   sim.path = new TrailPath(root.querySelector("#path"),
@@ -66,6 +100,7 @@ async function boot() {
   sim.travelled = 0;
   sim.speed = 0;
   sim.yaw = 0;
+  sim.asking = null;          // the junction she is waiting on an answer at
 
   /*
    * Gestures share the simulation path with the buttons: both produce a nudge
@@ -74,30 +109,58 @@ async function boot() {
    */
   sim.gestures = new Gestures(root.querySelector("#scene"), (g) => {
     /*
-     * A sideways swipe means her way, not a turning.
+     * A sideways swipe answers her.
      *
-     * There are no junctions in the MVP -- one trail, no forks -- so this axis
-     * is free to do the more interesting thing full time: if something off the
-     * trail has her attention, swiping toward it lets her go and look, and
-     * swiping the other way calls her off it. Two useful verbs from one axis,
-     * and which one you get is decided by what is actually in front of you
-     * rather than by a mode.
+     * At some junctions she stops, turns and looks back rather than choosing
+     * for herself -- and this is the only moment the axis means anything, so
+     * away from one a sideways swipe is deliberately inert rather than doing
+     * something arbitrary.
      */
     if (g.type === "turnleft" || g.type === "turnright") {
-      const dir = g.type === "turnleft" ? -1 : 1;
-      const side = attentionSide(sim.state, perceive(sim.state, sim.rng));
-      if (!side) return;
-      onAction(dir === side ? ACTIONS.let_explore : ACTIONS.call_back);
+      if (!sim.asking) return;
+      if (sim.trail.choose(g.type === "turnleft" ? -1 : 1)) resumeFromAsk();
       return;
     }
+
+    /*
+     * Swipe up while she is asking means "you decide" -- she keeps the branch
+     * she had already picked and walks on. Waiting is not the only way out.
+     */
+    if (g.type === "sendon" && sim.asking) resumeFromAsk();
 
     const intent = gestureToIntent(g, sim.state);
     if (!intent) return;
     sim.dispatch(Events.setPace(intent.pace));
 
+    if (intent.cyclePosture) {
+      const to = nextPosture(sim.state.interaction.posture, sim.rng.float);
+      sim.dispatch(Events.setPosture(to));
+      // Sitting or lying down is a calming beat as well as a pose.
+      if (to === "sit" || to === "lie") onAction(intentToAction({ settle: true }));
+      draw();
+      return;
+    }
+    if (intent.posture !== undefined) sim.dispatch(Events.setPosture(intent.posture));
+    // Asking her on clears whatever a tap put her in, or she never moves off.
+    if (intent.pace !== "stop") sim.dispatch(Events.setPosture(null));
+
     const action = intentToAction(intent);
     if (action) onAction(action);
   });
+
+  /*
+   * Everything is in. Reveal the scene FIRST and fade the cover over the top of
+   * it: the corridor and the path measure their container to place anything at
+   * all, and a hidden element measures zero.
+   */
+  await assets;
+  root.querySelector("#app").hidden = false;
+  const cover = root.querySelector("#loading");
+  if (cover) {
+    cover.classList.add("done");
+    setTimeout(() => cover.remove(), 600);
+  }
+  greet();
 
   startAnimation();
   bindControls();
@@ -152,7 +215,31 @@ function startAnimation() {
     sim.animator.update(dt, sim.travelled);
     const target = sim.animator.pace;
     sim.speed = (sim.speed ?? 0) + (target - (sim.speed ?? 0)) * (1 - Math.pow(0.12, dt));
-    sim.travelled += sim.speed * dt;
+    /*
+     * Junctions she asks about.
+     *
+     * She stops a few metres short, turns and looks back, and waits. The
+     * stopping is not a special case in the movement code: the looking-back
+     * pose is not a gait, and the world only moves at the pace of the clip
+     * she is in, so setting the pose stops her by itself.
+     */
+    if (sim.asking) {
+      if (clock - sim.asking.since > ASK_TIMEOUT) {
+        // Waited long enough. A dog does not stand at a fork indefinitely.
+        sim.trail.decideAlone();
+        resumeFromAsk();
+      }
+    } else if (sim.state.interaction.pace !== "stop" && sim.trail.pendingAsk()) {
+      sim.asking = { since: clock };
+      sim.paceBeforeAsk = sim.state.interaction.pace;
+      sim.dispatch(Events.setPace("stop"));
+      sim.dispatch(Events.setPosture("glance"));
+      draw();
+    }
+
+    // One running total, owned by the walker -- see corridor.update.
+    sim.trail.advance(sim.speed * dt);
+    sim.travelled = sim.trail.travelled;
 
     // The camera turns to keep her in view when she leaves the trail (§15A.2).
     const targetYaw = offTrailFor(sim.state) * 0.42;
@@ -179,11 +266,11 @@ function startAnimation() {
 
     sim.corridor.setRail(!!place.rail);
 
-    sim.bend = bendAt(sim.travelled);
-    sim.heading = heading(sim.travelled);
+    sim.bend = sim.trail.bendAt();
+    sim.heading = sim.trail.turn;
 
-    sim.corridor.update(dt, sim.speed, sim.yaw, sim.bend);
-    sim.path.draw(sim.travelled, sim.yaw, sim.bend);
+    sim.corridor.update(dt, sim.speed, sim.yaw, sim.bend, sim.travelled);
+    sim.path.draw(sim.travelled, sim.yaw, sim.bend, sim.trail.ghosts(), sim.trail.visibleTo);
     placeDog(root, sim, clock);
 
     if (ground) {
@@ -199,13 +286,42 @@ function startAnimation() {
      */
     const backdrop = root.querySelector("#backdrop");
     if (backdrop) {
-      const pan = -sim.yaw * 5 - sim.heading * 7;
+      const pan = -sim.yaw * 5 - Math.max(-0.9, Math.min(0.9, sim.heading * 12)) * 7;
       backdrop.style.transform = `translateX(${pan.toFixed(2)}%)`;
     }
 
     rafId = requestAnimationFrame(frame);
   };
   rafId = requestAnimationFrame(frame);
+}
+
+/**
+ * A beat after the scene appears, she turns and looks at you.
+ *
+ * Held back rather than set at boot so the turn is something you watch happen.
+ * Skipped if you got in first -- a tap or a swipe in that first second is a
+ * clearer statement of intent than a scripted greeting.
+ */
+function greet() {
+  setTimeout(() => {
+    const { pace, posture } = sim.state.interaction;
+    if (pace !== "stop" || posture !== "stand") return;
+    sim.dispatch(Events.setPosture("turn180"));
+    draw();
+  }, 1000);
+}
+
+/** How long she will wait at a junction before choosing for herself. */
+const ASK_TIMEOUT = 10;
+
+/** Done asking: pick up the pace she was on before she stopped. */
+function resumeFromAsk() {
+  if (!sim.asking) return;
+  sim.trail.decideAlone();
+  sim.asking = null;
+  sim.dispatch(Events.setPosture(null));
+  sim.dispatch(Events.setPace(sim.paceBeforeAsk || "walk"));
+  draw();
 }
 
 function stopAnimation() {

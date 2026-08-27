@@ -96,6 +96,9 @@ function pickKind(rand, kinds) {
  * IS the signal. Fixed lateral offset, even spacing, both sides, recycled as
  * they pass.
  */
+/** How much room to leave beside a path before anything grows. */
+const VERGE = 1.3;
+
 const RAIL = { file: "w-railpost.png", width: 0.5, x: 1.45, spacing: 2.6, anchor: 1 };
 
 export class Corridor {
@@ -105,10 +108,12 @@ export class Corridor {
    * @param {function} rand       seeded RNG, so a walk is reproducible (§37)
    */
   constructor(el, { count = 34, rand = Math.random, basePath = "assets/scene/scatter",
-                    set = "forest" } = {}) {
+                    set = "forest", clearance = () => 0 } = {}) {
     this.el = el;
     this.rand = rand;
     this.basePath = basePath;
+    this.clearance = clearance;
+    this.travelled = 0;
     this.kinds = kindsFor(set);
     this.items = [];
 
@@ -198,6 +203,21 @@ export class Corridor {
     item.kind = kind;
     item.x = side * (kind.minX + this.rand() * (kind.maxX - kind.minX));
     item.z = item.z ?? FAR;
+
+    /*
+     * Keep the fork's other branch clear.
+     *
+     * An item's lateral offset is decided once, here, and never changes -- so
+     * this has to be applied at spawn rather than per frame. Nudging a
+     * standing fern sideways every frame as a fork approaches would make the
+     * whole understorey visibly slide, and items are far enough out (spawn is
+     * at 15-26 m) that the fork is already decided by the time they appear.
+     */
+    const clear = this.clearance(this.travelled + item.z);
+    if (clear && Math.sign(item.x) === Math.sign(clear)
+        && Math.abs(item.x) < Math.abs(clear) + VERGE) {
+      item.x = Math.sign(clear) * (Math.abs(clear) + VERGE + this.rand() * 2.5);
+    }
     item.jitter = 0.82 + this.rand() * 0.42;      // size variation within a kind
     item.img.src = `${this.basePath}/${kind.file}`;
     return item;
@@ -218,8 +238,15 @@ export class Corridor {
    * @param {number} speed  metres per second along the trail
    * @param {number} yaw    camera turn, in the same units the plates use
    * @param {function} bend  (z) => lateral metres of the trail centreline at z
+   * @param {number} travelled  metres walked so far, for placing new scenery
    */
-  update(dt, speed, yaw = 0, bend = () => 0) {
+  update(dt, speed, yaw = 0, bend = () => 0, travelled = this.travelled) {
+    // Scenery is placed at a fixed arc length, so the corridor has to know how
+    // far she has come to work out where a newly spawned item sits. It is
+    // passed in rather than integrated here: a second running total of the same
+    // quantity drifts from the first, and the two would disagree about which
+    // fork a given fern is standing next to.
+    this.travelled = travelled;
     const { width: vw, height: vh } = this.el.getBoundingClientRect();
     if (!vw) return;
 

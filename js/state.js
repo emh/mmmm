@@ -42,6 +42,7 @@ export function initialState(seed) {
       actions: [],
       nudge: null,                // { encourage:[], discourage:[], strength, expires }
       pace: "stop",               // what the player has asked for: stop | walk | run
+      posture: null,              // what a tap has put her in: glance|sit|lie|stand
       playerSupported: false,
       log: [],                    // recent observable events, newest last
     },
@@ -60,6 +61,7 @@ export const Events = {
   setContext:    (context, actions) => ({ type: "SET_CONTEXT", context, actions }),
   setNudge:      (nudge) => ({ type: "SET_NUDGE", nudge }),
   setPace:       (pace) => ({ type: "SET_PACE", pace }),
+  setPosture:    (posture) => ({ type: "SET_POSTURE", posture }),
   note:          (text, tone) => ({ type: "NOTE", text, tone }),
   care:          (kind) => ({ type: "CARE", kind }),
   replaceMemory: (memory) => ({ type: "REPLACE_MEMORY", memory }),
@@ -130,6 +132,18 @@ export function reduce(state, event) {
      */
     case "SET_PACE":
       return { ...state, interaction: { ...state.interaction, pace: event.pace } };
+
+    /*
+     * Posture is the one thing the player states outright rather than asks for.
+     *
+     * Everything else here is a nudge her utility model may decline, which is
+     * the point of the game. A tap is different: it is a hand on the dog, and
+     * the answer arrives immediately. Which posture she goes to is still hers
+     * -- the cycle picks among sitting, lying and looking back -- but that she
+     * changes is not.
+     */
+    case "SET_POSTURE":
+      return { ...state, interaction: { ...state.interaction, posture: event.posture } };
 
     case "PLAYER_ACTION":
       return {

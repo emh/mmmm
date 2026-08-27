@@ -43,6 +43,9 @@ const FADE_FROM = 16;
 /** Screen rows per drawn strip. */
 const STRIP = 2;
 
+/** Metres over which a branch not taken fades away into the trees. */
+const GHOST_FADE = 11;
+
 export class TrailPath {
   constructor(canvas, wrap, scene) {
     this.canvas = canvas;
@@ -78,8 +81,11 @@ export class TrailPath {
    * @param {number} travelled  metres walked so far
    * @param {number} yaw        camera turn, same units the scenery uses
    * @param {function} bend     (z) => lateral metres of the trail at z ahead
+   * @param {Array}   ghosts    branches not taken: {bend, fromZ, toZ}
+   * @param {number}  visibleTo how far ahead the trail is still in view --
+   *                            past a sharp corner it has turned out of frame
    */
-  draw(travelled, yaw, bend) {
+  draw(travelled, yaw, bend, ghosts = [], visibleTo = Infinity) {
     const { width: cw, height: ch } = this.wrap.getBoundingClientRect();
     const vw = this.scene.clientWidth, vh = this.scene.clientHeight;
     if (!cw || !vw || !this.tex) return;
@@ -94,15 +100,29 @@ export class TrailPath {
     // single offset on each axis.
     const offX = (cw - vw) / 2;
 
+    ctx.save();
+    /*
+     * Branches first, so the trail she is actually on draws over them where
+     * they overlap at the junction. They share this routine exactly -- a fork
+     * is the same ribbon with a different centreline, which is what keeps the
+     * two seamless where they part company.
+     */
+    for (const g of ghosts) {
+      this.ribbon(vw, vh, ch, offX, travelled, yaw, g.bend, g.fromZ, g.toZ);
+    }
+    this.ribbon(vw, vh, ch, offX, travelled, yaw, bend, 0, visibleTo);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  ribbon(vw, vh, ch, offX, travelled, yaw, bend, fromZ, toZ) {
+    const ctx = this.ctx;
     const tex = this.tex;
     const pxPerMetre = tex.height / TEX_METRES;
-
     // The row where the far cutoff lands, so we never loop over rows we skip.
     const yFar = vh * EYE * FOCAL / MAX_Z;
-    const yNear = ch;
 
-    ctx.save();
-    for (let y = Math.max(1, yFar); y < yNear; y += STRIP) {
+    for (let y = Math.max(1, yFar); y < ch; y += STRIP) {
       // Invert the corridor's own ground projection: it puts a point at
       // distance z this far below the horizon, so this far below the horizon
       // is that distance.
@@ -112,7 +132,9 @@ export class TrailPath {
       const scale = vw * FOCAL / z;
       const halfW = (TRAIL_W / 2) * scale;
       if (halfW < 0.5) continue;
-      const cx = vw / 2 + (bend(z) - yaw * 2.6) * scale + offX;
+      const off = bend(z);
+      if (Number.isNaN(off)) continue;
+      const cx = vw / 2 + (off - yaw * 2.6) * scale + offX;
 
       /*
        * The texture advances with distance, and one strip covers the depth
@@ -120,13 +142,21 @@ export class TrailPath {
        * feet and several metres near the cutoff. Taking that span from the
        * source is what keeps the texture from sliding against the ground.
        */
+      // A branch exists only over its own stretch of trail.
+      if (z < fromZ || z > toZ) continue;
       const s = travelled + z;
       const span = Math.max(0.001, z - zNext);
       const srcY = ((s % TEX_METRES) + TEX_METRES) % TEX_METRES * pxPerMetre;
       const srcH = Math.min(tex.height, span * pxPerMetre);
 
-      ctx.globalAlpha = z <= FADE_FROM ? 1
+      const haze = z <= FADE_FROM ? 1
         : Math.max(0, 1 - (z - FADE_FROM) / (MAX_Z - FADE_FROM));
+      // A branch also fades along its own length, so it goes into the trees
+      // rather than stopping dead.
+      const tail = Number.isFinite(toZ)
+        ? Math.min(1, Math.max(0, (toZ - z) / GHOST_FADE))
+        : 1;
+      ctx.globalAlpha = haze * tail;
 
       // A tile boundary inside the strip needs two draws, or drawImage clamps
       // and the texture visibly stalls for a row.
@@ -143,7 +173,5 @@ export class TrailPath {
                       cx - halfW, y, halfW * 2, STRIP);
       }
     }
-    ctx.restore();
-    ctx.globalAlpha = 1;
   }
 }
