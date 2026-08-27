@@ -19,6 +19,15 @@
 const MIN_SEP = 44;
 const MAX_LINK = 132;
 
+/**
+ * The most trails that may meet at one node.
+ *
+ * Three: the one she arrives on, and the two she chooses between. The degree
+ * cap is enforced even when repairing connectivity -- an unreachable corner of
+ * the park is a smaller problem than a junction the controls cannot express.
+ */
+const MAX_DEGREE = 3;
+
 /** The least angle two trails may leave the same junction by. */
 const MIN_FAN = 0.7;
 
@@ -131,7 +140,10 @@ export class TrailMap {
   addEdge(a, b, force = false) {
     const A = this.nodes[a], B = this.nodes[b];
     if (A.edges.some((e) => this.other(e, a) === b)) return false;
-    if (!force && (A.edges.length >= 4 || B.edges.length >= 4)) return false;
+    // Never more than three trails at a node: you arrive on one and choose
+    // between two. A fourth makes it a three-way choice, which the left/right
+    // gesture has no answer for and which reads as a tangle on screen.
+    if (A.edges.length >= MAX_DEGREE || B.edges.length >= MAX_DEGREE) return false;
     // No trail may cross another without a junction there to explain it --
     // unless the alternative is a piece of the park she can never reach.
     if (!force) {

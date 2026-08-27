@@ -9,7 +9,7 @@
  *   - left and right both come up; it is not secretly always one of them
  */
 import { TrailMap } from "../js/world/trailmap.js";
-import { Trail } from "../js/world/trail.js";
+import { Trail, ASK_DIST } from "../js/world/trail.js";
 
 const seeds = [20260827, 42, 7, 999, 1, 3];
 let asks = 0, junctions = 0, chosen = 0, wrongSide = 0, farAsk = 0, noChoice = 0;
@@ -32,7 +32,10 @@ for (const seed of seeds) {
       dist += trail.travelled - lastAsk; lastAsk = trail.travelled;
 
       // Only ever near the fork, and only with something to choose between.
-      if (ask.gap > 4.5) farAsk++;
+      // Read from the source, not copied: this assertion was written as a
+      // literal 4.5 and silently became a lie the moment she started stopping
+      // further back so the fork would clear the dog.
+      if (ask.gap > ASK_DIST) farAsk++;
       if (ask.options.length < 2) noChoice++;
 
       const want = i % 2 ? 1 : -1;

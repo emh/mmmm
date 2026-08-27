@@ -263,7 +263,7 @@ function startAnimation() {
     }
 
     // One running total, owned by the walker -- see corridor.update.
-    sim.trail.advance(sim.speed * dt);
+    sim.trail.advance(sim.speed * dt, dt);
     sim.travelled = sim.trail.travelled;
 
     // The camera turns to keep her in view when she leaves the trail (§15A.2).
@@ -293,6 +293,10 @@ function startAnimation() {
 
     sim.bend = sim.trail.bendAt();
     sim.heading = sim.trail.turn;
+
+    // Step aside to wait at a fork, and drift back to the middle afterwards.
+    const asideTo = sim.asking ? sim.trail.takenSide() * ASK_STEP_ASIDE : 0;
+    sim.aside = (sim.aside || 0) + (asideTo - (sim.aside || 0)) * (1 - Math.pow(0.05, dt));
 
     sim.sound.update(dt, { ...sim.animator.gait, speed: sim.speed });
     sim.corridor.update(dt, sim.speed, sim.yaw, sim.bend, sim.travelled);
@@ -336,6 +340,17 @@ function greet() {
     draw();
   }, 1000);
 }
+
+/**
+ * How far she steps off the trail centre to wait at a fork, in metres.
+ *
+ * She is about a hundred and fifty screen pixels wide at following distance,
+ * and a fork opens roughly ninety pixels across at the junction -- so standing
+ * on the centre line she covers the very thing she is asking about. Moving her
+ * closer would only make her wider; stepping aside is what actually clears it,
+ * and it is what a dog waiting at a fork does anyway.
+ */
+const ASK_STEP_ASIDE = 0.95;
 
 /** How long she will wait at a junction before choosing for herself. */
 const ASK_TIMEOUT = 10;

@@ -52,8 +52,83 @@ const MAX_TURN = 1.15;
  */
 const AIM = 9;
 
-/** A light damping on top of the aim, to take the edge off. */
+/**
+ * A light damping on top of the aim: metres walked, and seconds elapsed.
+ *
+ * Distance alone was a bug with a long reach. Standing still means ds is zero,
+ * which makes the easing factor exactly zero -- so the camera could not turn AT
+ * ALL while she was stopped. Every fix for "the fork is not framed when she
+ * stops" was landing on a camera that was never going to move: the aim point
+ * blended correctly onto the fork and the heading simply never followed it.
+ */
 const CAM_EASE = 1.6;
+const CAM_EASE_TIME = 0.8;
+
+/**
+ * Seconds to swing the camera between looking up the trail and looking at the
+ * junction she has stopped at.
+ *
+ * Eased by TIME, not by distance -- she is standing still for all of it, so a
+ * distance-based ease would never move. Switching the aim outright instead put
+ * a jump at each end of every ask, which measured as a doubling of the worst
+ * view swing in the game.
+ */
+const AIM_BLEND = 0.55;
+
+/**
+ * How far both branches must be drawable before she will offer a choice.
+ *
+ * Some edges curve hard just past their node. In the camera's frame such a
+ * branch stops getting further away within a metre or two, sampling ends there,
+ * and it draws as a stub -- a third of forks looked like that. Asking about a
+ * fork the player cannot see is worse than not asking at all.
+ */
+const MIN_SHOW = 9;
+
+/**
+ * The fastest a DRAWN branch may turn, in radians per metre.
+ *
+ * The topology is the invariant; the line on the ground is not. A branch only
+ * has to leave in the right direction and reach the next node -- how it gets
+ * there is ours to choose. Some edges curve hard just past their node, and
+ * traced faithfully they stop receding from the camera within a metre or two,
+ * which is what drew a third of forks as stubs.
+ *
+ * Following the real edge's heading but capping how fast the drawn line may
+ * turn toward it keeps the branch heading away from the camera, so it stays
+ * visible for its whole length. It arrives at the same place; it simply gets
+ * there without the kink.
+ */
+const SOFT_TURN = 0.05;
+
+/**
+ * How far a DRAWN branch may end up from the trail it leaves, in radians.
+ *
+ * A branch stops being drawable once it passes ninety degrees off the camera,
+ * because from there it no longer gets further away and the sampling has
+ * nothing left to follow. Capping the drawn heading well short of that means
+ * it always keeps receding, so it reads as a path going off into the trees
+ * rather than as a stub.
+ *
+ * The real edge may of course wander further than this on its way to the next
+ * node -- but by then it is deep in the haze, where the difference between the
+ * line we draw and the line on the map is not observable.
+ */
+const SOFT_MAX_DEV = 1.0;
+
+/**
+ * How far a drawn branch is splayed off the trail it leaves, in radians.
+ *
+ * Tracing the true departure angle is honest and unreadable. The branches open
+ * about ninety screen pixels apart at the junction and Molly is a hundred wide,
+ * so the dog stands squarely in front of the fork and the player sees one path.
+ *
+ * The line on the ground is ours to choose, so the branch is drawn leaving
+ * wide -- at least this far off the trunk -- and allowed to bend back toward
+ * its real heading over the following stretch. It reaches the same node; it
+ * just announces itself first.
+ */
+const SPLAY = 0.62;
 
 /**
  * Passes of corner rounding over the sampled trail.
@@ -79,23 +154,53 @@ const ROUND_PASSES = 55;
 /** Extra trail sampled past a point of interest so it can be rounded at all. */
 const ROUND_TAIL = 10;
 
-/** How often a junction with a real choice is one she asks about. */
-const ASK_CHANCE = 0.55;
+/**
+ * How often a junction with a real choice is one she asks about.
+ *
+ * High, because by the time this applies the junction has already had to pass
+ * a much harder test: both branches must draw as visible paths. Most of the
+ * thinning happens there, so being choosy here as well just made forks rare.
+ */
+const ASK_CHANCE = 0.9;
 
 /**
  * The sharpest branch she will offer, in radians.
  *
- * Wider than MAX_TURN on purpose. Left to herself she only counts the gentle
- * continuations, and at most junctions there is exactly one of those -- so
- * offering only what she would consider meant a real choice came up at a tenth
- * of junctions, roughly once every ten minutes of walking. Asked, she will put
- * a sharper branch on the table, because taking it is the player's call and
- * not hers.
+ * Wider than MAX_TURN, because left to herself she only counts the gentle
+ * continuations and at most junctions there is exactly one of those -- offering
+ * only what she would take meant a real choice came up at a tenth of junctions.
+ * Asked, she will put a sharper branch on the table, because taking it is the
+ * player's call and not hers.
+ *
+ * But not much sharper. At 1.5 rad a branch leaves almost perpendicular and
+ * turns out of frame within a metre: measured, those drew as a 0.2 m stub, and
+ * choosing one left the trail itself a stub. An option that cannot be seen is
+ * not an option.
  */
-const ASK_TURN = 1.5;
+const ASK_TURN = 1.05;
 
-/** How close to the junction she stops to ask, in metres. */
-const ASK_DIST = 4.5;
+/**
+ * The least angle between the two branches she will offer, in radians.
+ *
+ * A fork has to look like a fork. Ten junctions in sixty-nine had arms three or
+ * four degrees apart -- 0.2 m of separation two metres past the node -- which
+ * is a bend in the trail, not a choice, however it is drawn. Below this she
+ * simply walks through and says nothing.
+ */
+const ASK_SPREAD = 0.42;
+
+/**
+ * How far short of the junction she stops to ask, in metres.
+ *
+ * Well back, because the camera follows from behind HER. Stopping four metres
+ * out put the fork barely two metres past the dog, where her own body covers
+ * it -- the branches were measurably metres apart and the player saw one path.
+ *
+ * Not so far back that the split happens in the haze either: from here the Y
+ * opens between about ten and sixteen metres, which is the stretch of trail
+ * that is both ahead of her and still clear.
+ */
+export const ASK_DIST = 7.0;
 
 /**
  * Round a sampled polyline, holding the ends still.
@@ -212,16 +317,37 @@ export class Trail {
        * extended, not on arrival, so it cannot flicker as she walks up to it --
        * and only where there is a genuine choice to offer.
        */
+      /*
+       * Offer exactly two branches, the pair that separates most widely.
+       *
+       * Two because the gesture is left or right -- a third option has nothing
+       * to map onto. The widest pair because that is the one that reads as a
+       * fork from behind her.
+       */
       const offer = outward.filter((e) => Math.abs(turnOf(e)) <= ASK_TURN);
-      seg.options = offer.length >= 2 ? offer : null;
-      seg.ask = !!seg.options && this.rand() < ASK_CHANCE;
+      /*
+       * The pair that separates most widely. Which side of the view each falls
+       * on is not a condition -- of any two branches one is always further
+       * left and the other further right, and that is what the swipe resolves
+       * against. Requiring them to straddle the centre line as well threw away
+       * a third of the junctions for no gain the player could see.
+       */
+      let pair = null, best = ASK_SPREAD;
+      for (let i = 0; i < offer.length; i++) {
+        for (let j = i + 1; j < offer.length; j++) {
+          const spread = Math.abs(turnOf(offer[i]) - turnOf(offer[j]));
+          if (spread > best) { best = spread; pair = [offer[i], offer[j]]; }
+        }
+      }
+      seg.options = pair;
+      seg.ask = !!pair && this.rand() < ASK_CHANCE;
       this.route.push(seg);
       ahead += seg.len;
     }
   }
 
-  advance(ds) {
-    if (!(ds > 0)) { this.resample(); return; }
+  advance(ds, dt = 0) {
+    if (!(ds > 0)) { this.resample(0, dt); return; }
     this.travelled += ds;
     this.pos += ds;
     while (this.route.length > 1 && this.pos >= this.route[0].len) {
@@ -229,7 +355,7 @@ export class Trail {
       this.route.shift();
     }
     this.extend();
-    this.resample(ds);
+    this.resample(ds, dt);
   }
 
   /**
@@ -240,12 +366,40 @@ export class Trail {
    * camera actually uses to the unrounded line -- the corner would be rounded
    * everywhere except in the place that decides where the camera points.
    */
+  /**
+   * Where the camera looks: up the trail, or at a junction she has stopped at.
+   *
+   * The route always holds a provisional choice, so up the trail means already
+   * turning onto one arm before the player has answered -- which frames a fork
+   * as "straight on, and something off to the side" rather than as a Y. Looking
+   * at the node puts both branches either side of centre, which is the entire
+   * point of stopping to ask.
+   *
+   * The two are blended, never switched: a switch jumps the view at both ends
+   * of every ask.
+   */
   aimPoint() {
     const i = Math.round(AIM / STEP);
     const n = i + Math.round(ROUND_TAIL / STEP);
     const pts = new Array(n + 1);
     for (let k = 0; k <= n; k++) pts[k] = this.ahead(k * STEP);
-    return roundOff(pts, ROUND_PASSES)[i];
+    const far = roundOff(pts, ROUND_PASSES)[i];
+
+    const b = this.aimAtNode || 0;
+    if (b < 0.002) return far;
+
+    /*
+     * Look at the junction itself: down the trunk she is standing on.
+     *
+     * Not at the midpoint between the two branches, which was the obvious
+     * idea and is wrong -- both arms can lie the same side of the trail, and
+     * the camera then swings far enough to carry Molly out of frame. She is
+     * the subject; the fork is what is in front of her. Down the trunk keeps
+     * her centred and opens the Y ahead of her, which is the shot.
+     */
+    const gap = Math.max(1, this.route[0].len - this.pos);
+    const near = this.ahead(gap);
+    return { x: far.x + (near.x - far.x) * b, y: far.y + (near.y - far.y) * b };
   }
 
   /**
@@ -285,10 +439,20 @@ export class Trail {
   choose(side) {
     const ask = this.pendingAsk();
     if (!ask) return false;
-    const match = ask.options.filter((e) => this.sideOf(e, ask.node) === side);
-    const pick = match.length
-      ? match[Math.floor(this.rand() * match.length)]
-      : null;
+    /*
+     * The branch furthest toward the side asked for -- not merely one that
+     * happens to be on it.
+     *
+     * Both branches can end up the same side of centre, and then a strict
+     * test leaves that swipe doing nothing at all, which reads as the game
+     * ignoring you. Taking the furthest one means an answer always lands.
+     */
+    let pick = null, bestLat = -Infinity;
+    for (const e of ask.options) {
+      const p = this.map.pointAt(e, ask.node, 8);
+      const lat = ((p.x - this.p0.x) * this.p0.ty - (p.y - this.p0.y) * this.p0.tx) * side;
+      if (lat > bestLat) { bestLat = lat; pick = e; }
+    }
     if (pick === null) return false;
     const next = this.route[1];
     next.edge = pick;
@@ -298,6 +462,13 @@ export class Trail {
     this.extend();
     this.resample();
     return true;
+  }
+
+  /** Which side of the trail the branch she is provisionally on lies. */
+  takenSide() {
+    const next = this.route[1];
+    if (!next) return 1;
+    return this.sideOf(next.edge, next.from);
   }
 
   /** Stop asking and keep the branch she had already picked. */
@@ -330,7 +501,13 @@ export class Trail {
    * which is exactly the point where the trail has turned out of view -- so a
    * sharp corner simply ends, rather than folding back over itself.
    */
-  resample(ds = 0) {
+  resample(ds = 0, dt = 0) {
+    this.vetAsk();
+    // Ease toward the junction while she is asking, and back afterwards.
+    const want = this.pendingAsk() ? 1 : 0;
+    this.aimAtNode = (this.aimAtNode || 0)
+      + (want - (this.aimAtNode || 0)) * (1 - Math.exp(-Math.max(0, dt) / AIM_BLEND));
+
     const p = this.here();
 
     // Aim at a point up the trail; fall back to the tangent if that point is
@@ -341,7 +518,7 @@ export class Trail {
     if (al < 0.5) { ax = p.tx; ay = p.ty; }
     else { ax /= al; ay /= al; }
 
-    const k = 1 - Math.exp(-Math.max(0, ds) / CAM_EASE);
+    const k = 1 - Math.exp(-(Math.max(0, ds) / CAM_EASE + Math.max(0, dt) / CAM_EASE_TIME));
     let tx = this.camTx + (ax - this.camTx) * k;
     let ty = this.camTy + (ay - this.camTy) * k;
     const l = Math.hypot(tx, ty) || 1;
@@ -387,6 +564,100 @@ export class Trail {
     if (this.turn > Math.PI) this.turn -= 2 * Math.PI;
     if (this.turn < -Math.PI) this.turn += 2 * Math.PI;
     this.turn /= 6;
+  }
+
+  /**
+   * How far a branch stays drawable, in a frame aimed between the two arms.
+   *
+   * Measured in the frame the player will actually see it in -- looking down
+   * the trunk at the junction -- not the frame the camera happens to be in
+   * while she is still walking up to it. Judging by the present heading, or by
+   * any other frame, passes forks that then draw as stubs.
+   */
+  /**
+   * A branch as it is DRAWN: the real edge's direction, softened.
+   *
+   * Integrates a heading that chases the edge's own but may not turn faster
+   * than SOFT_TURN, so the line bends instead of kinking.
+   */
+  softBranch(edge, node, len, ref = null, splaySide = 0) {
+    const start = this.map.pointAt(edge, node, 0);
+    let x = start.x, y = start.y, h = Math.atan2(start.ty, start.tx);
+
+    // Leave wide enough to be seen past the dog, on the side it really lies.
+    if (splaySide) {
+      let d = h - ref;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      const side = Math.abs(d) > 0.12 ? Math.sign(d) : splaySide;
+      h = ref + side * Math.max(Math.abs(d), SPLAY);
+    }
+    const bound = (a) => {
+      if (ref === null) return a;
+      let d = a - ref;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      return ref + Math.max(-SOFT_MAX_DEV, Math.min(SOFT_MAX_DEV, d));
+    };
+    h = bound(h);
+
+    const pts = [{ x, y }];
+    const cap = SOFT_TURN * STEP;
+    for (let d = STEP; d <= len; d += STEP) {
+      const q = this.map.pointAt(edge, node, d);
+      let dh = bound(Math.atan2(q.ty, q.tx)) - h;
+      while (dh > Math.PI) dh -= 2 * Math.PI;
+      while (dh < -Math.PI) dh += 2 * Math.PI;
+      h = bound(h + Math.max(-cap, Math.min(cap, dh)));
+      x += Math.cos(h) * STEP;
+      y += Math.sin(h) * STEP;
+      pts.push({ x, y });
+    }
+    return pts;
+  }
+
+  /** The direction the trail arrives at a node by -- what a branch leaves from. */
+  trunkHeading(seg) {
+    const t = this.map.pointAt(seg.edge, seg.from, seg.len);
+    return Math.atan2(t.ty, t.tx);
+  }
+
+  forkSpan(ask) {
+    const here = this.here();
+    // The frame the camera will actually be in: looking down the trunk at the
+    // junction. Judging in any other frame passes forks that then stub.
+    const node = this.map.pointAt(this.route[0].edge, this.route[0].from, this.route[0].len);
+    let tx = node.x - here.x, ty = node.y - here.y;
+    const l = Math.hypot(tx, ty) || 1;
+    tx /= l; ty /= l;
+
+    let worst = Infinity;
+    for (const e of ask.options) {
+      let last = -Infinity, first = null, end = 0;
+      for (const p of this.softBranch(e, ask.node, GHOST_LEN, this.trunkHeading(this.route[0]), 1)) {
+        const f = (p.x - here.x) * tx + (p.y - here.y) * ty;
+        if (first === null) { if (f <= 0.25) continue; first = f; }
+        else if (f <= last) break;
+        last = f; end = f;
+      }
+      worst = Math.min(worst, first === null ? 0 : end - first);
+    }
+    return worst;
+  }
+
+  /**
+   * Decide, once, whether a junction ahead is worth stopping at.
+   *
+   * Sticky: the answer must not flicker as she walks the last few metres in.
+   */
+  vetAsk() {
+    const next = this.route[1];
+    if (!next || !next.ask || next.vetted) return;
+    if (this.route[0].len - this.pos > ASK_DIST + 4) return;
+    next.vetted = true;
+    if (this.forkSpan({ node: next.from, options: next.options }) < MIN_SHOW) {
+      next.ask = false;
+    }
   }
 
   /**
@@ -442,9 +713,17 @@ export class Trail {
       const taken = this.route[i + 1].edge;
       for (const e of node.edges) {
         if (e === taken || e === this.route[i].edge) continue;
-        const braw = [];
-        for (let t = 0; t <= GHOST_LEN; t += STEP) braw.push(this.map.pointAt(e, node.id, t));
-        const bpts = roundOff(braw, ROUND_PASSES);
+        /*
+         * Splayed away from the branch she is on, so the two open into a Y
+         * rather than running side by side behind the dog.
+         */
+        const ref = this.trunkHeading(this.route[i]);
+        let away = this.map.pointAt(taken, node.id, 0);
+        let td = Math.atan2(away.ty, away.tx) - ref;
+        while (td > Math.PI) td -= 2 * Math.PI;
+        while (td < -Math.PI) td += 2 * Math.PI;
+        const bpts = roundOff(
+          this.softBranch(e, node.id, GHOST_LEN, ref, td >= 0 ? -1 : 1), ROUND_PASSES);
         const fwd = [], lat = [];
         let last = -Infinity;
         for (const p of bpts) {

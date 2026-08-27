@@ -92,6 +92,9 @@ function renderDog(root, sim) {
 }
 
 /** Called every animation frame -- placement, not content. */
+/** Fraction of her true distance at which she is actually drawn. */
+const DRAW_NEAR = 0.82;
+
 export function placeDog(root, sim, t) {
   const scene = root.querySelector("#scene");
   const el = root.querySelector("#dog");
@@ -114,7 +117,19 @@ export function placeDog(root, sim, t) {
    * which is empty space below her paws. Seating the bottom lifts her off the
    * ground by exactly that gap and strands her shadow underneath.
    */
+  /*
+   * Drawn nearer the camera than she is, at the size she is.
+   *
+   * Size and position both come from z, but they need not: how big she reads
+   * is a framing choice and where her feet land is another. Moving her closer
+   * for real would scale her UP -- a hundred and fifty screen pixels wide at
+   * following distance becomes two hundred and twenty -- and she would cover
+   * more of the trail ahead, not less. Taking her width from her true distance
+   * and her ground line from a nearer one sits her lower in the frame at the
+   * same size, which is what opens up the trail in front of her.
+   */
   const p = project(z, MOLLY_CANVAS_W, vw, vh);
+  const seat = project(z * DRAW_NEAR, MOLLY_CANVAS_W, vw, vh);
   const width = p.width;                 // project() normalises by viewport width
   const height = width * (CANVAS[1] / CANVAS[0]);
   const ground = sim.animator ? sim.animator.ground : 0.8;
@@ -125,12 +140,17 @@ export function placeDog(root, sim, t) {
    * rather than on it through a turn.
    */
   const curve = sim.bend ? sim.bend(z) : 0;
-  const lateral = (offTrailFor(sim.state) + curve + weight * 0.05) * vw * 0.62 / z;
+  const lateral =
+    (offTrailFor(sim.state) + curve + (sim.aside || 0) + weight * 0.05)
+    // Scaled by where she really is, not where she is drawn: seating her
+    // nearer would otherwise magnify the step-aside by the same factor and
+    // walk her off the side of the frame.
+    * vw * 0.62 / z;
 
   el.style.width = `${width.toFixed(1)}px`;
   el.style.height = `${height.toFixed(1)}px`;
   el.style.left = `${(vw / 2 + lateral - width / 2).toFixed(1)}px`;
-  el.style.top = `${(p.groundY - height * ground - bob * height * 0.02).toFixed(1)}px`;
+  el.style.top = `${(seat.groundY - height * ground - bob * height * 0.02).toFixed(1)}px`;
   el.style.zIndex = String(depthLayer(z));
 
   const shadow = root.querySelector("#shadow");
@@ -141,7 +161,7 @@ export function placeDog(root, sim, t) {
     shadow.style.width = `${sw.toFixed(1)}px`;
     shadow.style.height = `${(sw * 0.28).toFixed(1)}px`;
     shadow.style.left = `${(vw / 2 + lateral).toFixed(1)}px`;
-    shadow.style.top = `${p.groundY.toFixed(1)}px`;
+    shadow.style.top = `${seat.groundY.toFixed(1)}px`;
     shadow.style.zIndex = String(depthLayer(z) - 1);
   }
 }
