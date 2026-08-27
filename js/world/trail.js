@@ -131,6 +131,24 @@ const SOFT_MAX_DEV = 1.0;
 const SPLAY = 0.62;
 
 /**
+ * How far back along the trail a branch is drawn before it leaves, in metres.
+ *
+ * A branch that starts exactly at its node begins with a straight cut across
+ * the ribbon -- and because it is already splayed by then, that cut sits off to
+ * one side of the trail and only catches it at a corner. It reads as a piece of
+ * path lying near the trail rather than joining it.
+ *
+ * Running it back down the trunk first, and rounding the whole line together,
+ * means the two share the same ground for a few metres and part company
+ * smoothly. That is what makes a crotch instead of a gap.
+ *
+ * A few metres is all it needs -- the rounding reaches about two. Set as long
+ * as the stopping distance it redraws the whole visible trail underneath the
+ * main ribbon, which costs a second pass over every row for nothing.
+ */
+const MERGE = 4.5;
+
+/**
  * Passes of corner rounding over the sampled trail.
  *
  * Two edges meeting at a junction have different tangents, so the path has a
@@ -201,6 +219,14 @@ const ASK_SPREAD = 0.42;
  * that is both ahead of her and still clear.
  */
 export const ASK_DIST = 7.0;
+
+/**
+ * How close she can be to a junction and still be steered onto the other arm.
+ *
+ * Below this the turn would have to happen under her feet, which reads as the
+ * trail jumping rather than as her taking the other path.
+ */
+const STEER_MIN = 3.0;
 
 /**
  * Round a sampled polyline, holding the ends still.
@@ -431,6 +457,76 @@ export class Trail {
   }
 
   /**
+   * Steer onto the branch on `side` at the junction ahead, while she walks.
+   *
+   * Forks are drawn at every junction in view, not only the ones she stops to
+   * ask about -- so the player can watch one coming for twenty metres. Making
+   * the sideways gesture mean something only during an ask left them watching
+   * a fork arrive with no way to act on it.
+   *
+   * Judged on the DRAWN branches, because that is what the player is steering
+   * by. Returns false when she is already headed that way, or when the
+   * junction is too close to turn onto anything without teleporting.
+   */
+  steer(side) {
+    const next = this.route[1];
+    if (!next) return false;
+    const gap = this.route[0].len - this.pos;
+    if (gap < STEER_MIN || gap > LOOK) return false;
+
+    const here = this.ghosts().filter((g) => g.node === next.from);
+    if (!here.length) return false;
+
+    const z = Math.min(gap + 6, this.visibleTo - 0.5);
+    const mine = this.bendAt()(z);
+    let pick = null, bestLat = null;
+    for (const g of here) {
+      if (z < g.fromZ || z > g.toZ) continue;
+      const lat = g.bend(z);
+      if (side < 0 ? lat >= mine : lat <= mine) continue;   // not that way
+      if (bestLat === null || (side < 0 ? lat < bestLat : lat > bestLat)) {
+        bestLat = lat; pick = g;
+      }
+    }
+    if (!pick) return false;
+    return this.takeBranch(pick.edge, side, z, mine);
+  }
+
+  /**
+   * Switch to `edge`, and put it back if it did not go the way asked.
+   *
+   * A branch is drawn one way as a ghost -- rate-limited and splayed clear of
+   * the trail -- and another way once it IS the trail, straight off the route.
+   * Two different lines, so no amount of care picking by the ghost can predict
+   * exactly where the main ribbon lands. Rather than predict it, do it and
+   * look: one steer in seven used to end up on the opposite branch from the
+   * one asked for, and there is no version of that a player forgives.
+   */
+  takeBranch(edge, side, z, wasLat) {
+    const next = this.route[1];
+    const keep = { edge: next.edge, len: next.len, ask: next.ask, vetted: next.vetted };
+    const tail = this.route.slice(2);
+
+    next.edge = edge;
+    next.len = this.map.edges[edge].length;
+    next.ask = false;
+    next.vetted = true;
+    this.route.length = 2;
+    this.extend();
+    this.resample();
+
+    const now = this.bendAt()(z);
+    if (side < 0 ? now < wasLat : now > wasLat) return true;
+
+    Object.assign(next, keep);
+    this.route.length = 2;
+    this.route.push(...tail);
+    this.extend();
+    this.resample();
+    return false;
+  }
+
+  /**
    * Take the branch on `side`, or the straightest if neither is on that side.
    *
    * The route past this junction was chosen on the old branch, so it is thrown
@@ -440,27 +536,13 @@ export class Trail {
     const ask = this.pendingAsk();
     if (!ask) return false;
     /*
-     * The branch furthest toward the side asked for -- not merely one that
-     * happens to be on it.
-     *
-     * Both branches can end up the same side of centre, and then a strict
-     * test leaves that swipe doing nothing at all, which reads as the game
-     * ignoring you. Taking the furthest one means an answer always lands.
+     * Answering always resolves the ask, whether or not it changes her mind.
+     * Pressing the side she is already headed is a confirmation, not a no-op --
+     * standing there because the player agreed with her would read as being
+     * ignored.
      */
-    let pick = null, bestLat = -Infinity;
-    for (const e of ask.options) {
-      const p = this.map.pointAt(e, ask.node, 8);
-      const lat = ((p.x - this.p0.x) * this.p0.ty - (p.y - this.p0.y) * this.p0.tx) * side;
-      if (lat > bestLat) { bestLat = lat; pick = e; }
-    }
-    if (pick === null) return false;
-    const next = this.route[1];
-    next.edge = pick;
-    next.len = this.map.edges[pick].length;
-    next.ask = false;
-    this.route.length = 2;
-    this.extend();
-    this.resample();
+    this.steer(side);
+    this.decideAlone();
     return true;
   }
 
@@ -580,18 +662,10 @@ export class Trail {
    * Integrates a heading that chases the edge's own but may not turn faster
    * than SOFT_TURN, so the line bends instead of kinking.
    */
-  softBranch(edge, node, len, ref = null, splaySide = 0) {
+  softBranch(edge, node, len, ref = null, startDev = null) {
     const start = this.map.pointAt(edge, node, 0);
     let x = start.x, y = start.y, h = Math.atan2(start.ty, start.tx);
-
-    // Leave wide enough to be seen past the dog, on the side it really lies.
-    if (splaySide) {
-      let d = h - ref;
-      while (d > Math.PI) d -= 2 * Math.PI;
-      while (d < -Math.PI) d += 2 * Math.PI;
-      const side = Math.abs(d) > 0.12 ? Math.sign(d) : splaySide;
-      h = ref + side * Math.max(Math.abs(d), SPLAY);
-    }
+    if (startDev !== null) h = ref + startDev;
     const bound = (a) => {
       if (ref === null) return a;
       let d = a - ref;
@@ -634,7 +708,7 @@ export class Trail {
     let worst = Infinity;
     for (const e of ask.options) {
       let last = -Infinity, first = null, end = 0;
-      for (const p of this.softBranch(e, ask.node, GHOST_LEN, this.trunkHeading(this.route[0]), 1)) {
+      for (const p of this.softBranch(e, ask.node, GHOST_LEN, this.trunkHeading(this.route[0]))) {
         const f = (p.x - here.x) * tx + (p.y - here.y) * ty;
         if (first === null) { if (f <= 0.25) continue; first = f; }
         else if (f <= last) break;
@@ -714,16 +788,40 @@ export class Trail {
       for (const e of node.edges) {
         if (e === taken || e === this.route[i].edge) continue;
         /*
-         * Splayed away from the branch she is on, so the two open into a Y
-         * rather than running side by side behind the dog.
+         * Splayed away from the branch she is on -- but splayed RELATIVE to
+         * it, so their order is preserved.
+         *
+         * Pushing the branch out to a fixed angle from the trunk flips that
+         * order whenever both arms lean the same way: the one that is really
+         * on the right gets drawn further out and reads as the left one. That
+         * put one steer in seven onto the opposite branch from the one asked
+         * for. Measuring the splay from the taken arm instead guarantees both
+         * a visible gap AND that left on screen is left in the model.
          */
         const ref = this.trunkHeading(this.route[i]);
-        let away = this.map.pointAt(taken, node.id, 0);
-        let td = Math.atan2(away.ty, away.tx) - ref;
-        while (td > Math.PI) td -= 2 * Math.PI;
-        while (td < -Math.PI) td += 2 * Math.PI;
-        const bpts = roundOff(
-          this.softBranch(e, node.id, GHOST_LEN, ref, td >= 0 ? -1 : 1), ROUND_PASSES);
+        const devOf = (id) => {
+          const p = this.map.pointAt(id, node.id, 0);
+          let d = Math.atan2(p.ty, p.tx) - ref;
+          while (d > Math.PI) d -= 2 * Math.PI;
+          while (d < -Math.PI) d += 2 * Math.PI;
+          return d;
+        };
+        const td = devOf(taken);
+        const gd = devOf(e);
+        const apart = Math.sign(gd - td) || 1;
+        const drawnDev = td + apart * Math.max(Math.abs(gd - td), SPLAY);
+        /*
+         * Start back down the trail she is on, then peel away. Rounding the
+         * joined line smooths the corner at the node into a fork.
+         */
+        const seg = this.route[i];
+        const back = Math.min(MERGE, seg.len);
+        const raw = [];
+        for (let d = seg.len - back; d < seg.len - 1e-6; d += STEP) {
+          raw.push(this.map.pointAt(seg.edge, seg.from, d));
+        }
+        raw.push(...this.softBranch(e, node.id, GHOST_LEN, ref, drawnDev));
+        const bpts = roundOff(raw, ROUND_PASSES);
         const fwd = [], lat = [];
         let last = -Infinity;
         for (const p of bpts) {
@@ -736,6 +834,9 @@ export class Trail {
         }
         if (fwd.length < 3) continue;
         out.push({
+          edge: e,
+          node: node.id,
+          at: d,                       // distance to the junction it leaves
           fromZ: fwd[0],
           toZ: fwd[fwd.length - 1],
           bend: (z) => Trail.read(fwd, lat, z),

@@ -134,16 +134,20 @@ async function boot() {
     sim.sound.start();      // and again, in case the first attempt was refused
 
     /*
-     * A sideways swipe answers her.
+     * A sideways swipe picks a branch -- whether or not she has stopped.
      *
-     * At some junctions she stops, turns and looks back rather than choosing
-     * for herself -- and this is the only moment the axis means anything, so
-     * away from one a sideways swipe is deliberately inert rather than doing
-     * something arbitrary.
+     * Restricting it to the moments she stops to ask was wrong: forks are
+     * drawn at every junction in view, so the player watches one approach for
+     * twenty metres with the gesture doing nothing, which is indistinguishable
+     * from the game ignoring them.
      */
     if (g.type === "turnleft" || g.type === "turnright") {
-      if (!sim.asking) return;
-      if (sim.trail.choose(g.type === "turnleft" ? -1 : 1)) resumeFromAsk();
+      const side = g.type === "turnleft" ? -1 : 1;
+      if (sim.asking) {
+        if (sim.trail.choose(side)) resumeFromAsk();
+      } else {
+        sim.trail.steer(side);
+      }
       return;
     }
 

@@ -61,13 +61,51 @@ for (const seed of seeds) {
   }
 }
 
+/*
+ * Steering while she walks. The sideways gesture used to mean something only
+ * during an ask, so a fork could be watched approaching for twenty metres with
+ * the controls doing nothing -- which is indistinguishable from being ignored.
+ */
+let approached = 0, steered = 0, wrongWay = 0;
+for (const seed of seeds) {
+  let s = seed >>> 0;
+  const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const map = new TrailMap(rand);
+  const trail = new Trail(map, rand);
+  let handled = false;
+  for (let i = 0; i < 16000; i++) {
+    const edge = trail.route[0].edge;
+    const gap = trail.route[0].len - trail.pos;
+    if (!handled && gap > 3.5 && gap < 12
+        && trail.ghosts().some((g) => g.node === trail.route[1]?.from)) {
+      handled = true; approached++;
+      const z = Math.min(gap + 6, trail.visibleTo - 0.5);
+      const was = trail.bendAt()(z);
+      const side = i % 2 ? 1 : -1;
+      if (trail.steer(side)) {
+        steered++;
+        const now = trail.bendAt()(z);
+        // She must end up on the side asked for. Never the other one.
+        if (side < 0 ? now >= was : now <= was) wrongWay++;
+      }
+    }
+    trail.advance(0.25, 0.227);
+    if (trail.route[0].edge !== edge) handled = false;
+  }
+}
+
 console.log(`over 24 km: ${junctions} junctions, ${asks} asked (${(asks / junctions * 100).toFixed(0)}%)`);
+console.log(`steering while she walks: ${approached} junctions approached, ${steered} switched`);
+console.log(`  ended up on the wrong side: ${wrongWay}`);
 console.log(`a choice every ${(dist / asks).toFixed(0)} m -- about every ${((dist / asks) / 1.1 / 60).toFixed(1)} min at a walk`);
 console.log(`sides offered: ${sides.left} left, ${sides.right} right`);
 console.log(`chose a side ${chosen} times`);
 console.log(`asked too far from the fork: ${farAsk}   asked with nothing to choose: ${noChoice}   took the wrong side: ${wrongSide}`);
 
 const ok = asks > 20 && chosen > 10 && !farAsk && !noChoice && !wrongSide
-  && sides.left > 0 && sides.right > 0;
-console.log(ok ? "PASS -- she asks at real forks and takes the side she is given" : "FAIL");
+  && sides.left > 0 && sides.right > 0
+  && steered > 20 && !wrongWay;
+console.log(ok
+  ? "PASS -- she asks at real forks, and takes the side she is given walking or stopped"
+  : "FAIL");
 process.exit(ok ? 0 : 1);
