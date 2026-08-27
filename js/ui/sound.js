@@ -75,20 +75,54 @@ export class Sound {
    * chirp falls between two reads and looks like silence.
    */
   start(external = null) {
-    if (this.ctx || this.muted) return;
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!external && !Ctx) return;
-    this.ctx = external || new Ctx();
+    if (this.muted) return;
 
-    this.master = this.ctx.createGain();
-    this.master.gain.value = 0;
-    this.master.connect(this.ctx.destination);
-    // Fade in, or the wind arrives as a click.
-    this.master.gain.linearRampToValueAtTime(MASTER, this.ctx.currentTime + 2.5);
+    if (!this.ctx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!external && !Ctx) return;
+      this.ctx = external || new Ctx();
 
-    this.noise = this.noiseBuffer();
-    this.buildWind();
-    this.nextBird = 2 + Math.random() * 4;
+      this.master = this.ctx.createGain();
+      this.master.connect(this.ctx.destination);
+      // Anchor the ramp explicitly. Without a starting point of its own it
+      // ramps from whatever the parameter happens to hold, which is not the
+      // same thing on every engine.
+      this.master.gain.setValueAtTime(0, this.ctx.currentTime);
+      this.master.gain.linearRampToValueAtTime(MASTER, this.ctx.currentTime + 2.5);
+
+      this.noise = this.noiseBuffer();
+      this.buildWind();
+      this.nextBird = 2 + Math.random() * 4;
+
+      /*
+       * Phones take the audio away and do not give it back.
+       *
+       * A call, an alarm, or another app claiming output leaves the context
+       * suspended -- iOS has a whole "interrupted" state for it. Nothing
+       * re-runs on its own afterwards, so without this the forest goes quiet
+       * for the rest of the session and only a fresh gesture would notice.
+       */
+      this.ctx.addEventListener?.("statechange", () => {
+        if (this.ctx.state !== "running" && !document.hidden) {
+          this.ctx.resume().catch(() => {});
+        }
+      });
+    }
+
+    /*
+     * Resume every time, not just on the first call.
+     *
+     * This is two bugs, and mobile hits both. A context created inside a
+     * gesture often comes up already running on desktop -- which is what made
+     * this look fine in testing -- but on a phone it is reliably created
+     * SUSPENDED and has to be resumed explicitly. And returning early once a
+     * context existed meant no later gesture could rescue it: tapping and
+     * swiping forever would never produce a sound.
+     *
+     * resume() rejects if it is called outside a gesture, which is fine -- the
+     * next gesture will try again.
+     */
+    if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
   }
 
   /** Two seconds of white noise, reused by everything that needs a hiss. */

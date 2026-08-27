@@ -114,8 +114,24 @@ async function boot() {
    * and let her own utility model choose (§2.1). So the dog learns the same
    * thing about the player either way (§9).
    */
-  sim.gestures = new Gestures(root.querySelector("#scene"), (g) => {
-    sim.sound.start();      // the first gesture is what lets the sound begin
+  /*
+   * Start the audio from the raw touch, not from the finished gesture.
+   *
+   * The gesture callback runs on pointerup, once a swipe has been told apart
+   * from a tap. That is still inside the activation window, but pointerdown is
+   * earlier and unconditional -- a drag that never resolves into a gesture at
+   * all still counts. `start()` is safe to call repeatedly and will retry a
+   * context that came up suspended, which is the state phones create them in.
+   */
+  const wake = () => sim.sound.start();
+  const scene = root.querySelector("#scene");
+  for (const ev of ["pointerdown", "touchstart", "keydown"]) {
+    scene.addEventListener(ev, wake, { passive: true });
+    root.addEventListener(ev, wake, { passive: true });
+  }
+
+  sim.gestures = new Gestures(scene, (g) => {
+    sim.sound.start();      // and again, in case the first attempt was refused
 
     /*
      * A sideways swipe answers her.
