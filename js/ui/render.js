@@ -118,7 +118,14 @@ export function placeDog(root, sim, t) {
   const width = p.width;                 // project() normalises by viewport width
   const height = width * (CANVAS[1] / CANVAS[0]);
   const ground = sim.animator ? sim.animator.ground : 0.8;
-  const lateral = (offTrailFor(sim.state) + weight * 0.05) * vw * 0.62 / z;
+  /*
+   * She walks the trail, so a bend carries her with it. It is a small number at
+   * following distance -- the curve is quadratic in z and she is only a couple
+   * of metres out -- but leaving it off is what would put her beside the path
+   * rather than on it through a turn.
+   */
+  const curve = sim.bend ? sim.bend(z) : 0;
+  const lateral = (offTrailFor(sim.state) + curve + weight * 0.05) * vw * 0.62 / z;
 
   el.style.width = `${width.toFixed(1)}px`;
   el.style.height = `${height.toFixed(1)}px`;

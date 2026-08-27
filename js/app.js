@@ -17,16 +17,9 @@ import { Corridor } from "./ui/corridor.js";
 import { renderInspector } from "./ui/debug.js";
 import { save, load, clear } from "./storage.js";
 import { PLACES } from "./world/places.js";
+import { bendAt, heading } from "./world/trail.js";
+import { TrailPath } from "./ui/trailpath.js";
 
-/**
- * How wide the worn path is, as a percentage of the ground plane.
- *
- * Tuned by eye against the scene, not derived: the plane is much wider than the
- * visible frame and is heavily foreshortened, so the relationship between this
- * number and the path's apparent width is not one anyone should try to reason
- * about from the geometry.
- */
-const PATH_WIDTH = 14;
 
 const TICK_MS = 1400;          // one decision beat; deliberately unhurried
 const root = document;
@@ -63,6 +56,9 @@ async function boot() {
     set: PLACES[sim.state.dog.place].scenery,
   });
   sim.animator = await Animator.load(root.querySelector("#dog"));
+  sim.path = new TrailPath(root.querySelector("#path"),
+                           root.querySelector("#ground-wrap"),
+                           root.querySelector("#scene"));
 
   // Camera state. These must be initialised: `undefined + speed * dt` is NaN,
   // which silently freezes the world while every other reading looks correct.
@@ -167,45 +163,45 @@ function startAnimation() {
     const place = PLACES[sim.state.dog.place];
     sim.corridor.setScenery(place.scenery || "forest");
     if (ground && sim.groundKind !== place.ground) {
-      sim.groundKind = place.ground || "trail-earth";
-      // Ground textures are photographic and opaque, so they are JPEG.
+      sim.groundKind = place.ground || "floor";
       /*
-       * The ground is two layers: an ordinary forest-floor surface that tiles
-       * both ways, and -- where the place has one -- a worn path laid over it.
+       * Just the forest floor now. The worn path used to be a second background
+       * layer here, but a background cannot curve -- it is drawn by TrailPath
+       * in screen space instead, sharing the corridor's projection.
        *
-       * The path cannot be the surface itself. The ground plane is far wider
-       * than the visible scene, so a texture whose path covers a third of its
-       * width ends up covering the whole screen. As an overlay it can be
-       * scaled independently and kept to a believable width.
+       * Ground textures are photographic and opaque, so they are JPEG.
        */
-      const surface = `url("assets/scene/ground-${sim.groundKind}.jpg")`;
-      const scale = `${place.groundScale || 38}% auto`;
-      if (place.path) {
-        ground.style.backgroundImage = `url("assets/scene/path-${place.path}.png"), ${surface}`;
-        ground.style.backgroundRepeat = "repeat-y, repeat";
-        ground.style.backgroundSize = `${PATH_WIDTH}% auto, ${scale}`;
-      } else {
-        ground.style.backgroundImage = surface;
-        ground.style.backgroundRepeat = "repeat";
-        ground.style.backgroundSize = scale;
-      }
+      ground.style.backgroundImage = `url("assets/scene/ground-${sim.groundKind}.jpg")`;
+      ground.style.backgroundRepeat = "repeat";
+      ground.style.backgroundSize = `${place.groundScale || 38}% auto`;
     }
+    sim.path.setTexture(place.path || null);
 
     sim.corridor.setRail(!!place.rail);
 
-    sim.corridor.update(dt, sim.speed, sim.yaw);
+    sim.bend = bendAt(sim.travelled);
+    sim.heading = heading(sim.travelled);
+
+    sim.corridor.update(dt, sim.speed, sim.yaw, sim.bend);
+    sim.path.draw(sim.travelled, sim.yaw, sim.bend);
     placeDog(root, sim, clock);
 
     if (ground) {
-      // Both layers scroll together; the path stays centred on the trail.
       const y = (sim.travelled * 34).toFixed(1);
       const x = (-sim.yaw * 120).toFixed(1);
-      ground.style.backgroundPosition = PLACES[sim.state.dog.place].path
-        ? `center ${y}px, ${x}px ${y}px`
-        : `${x}px ${y}px`;
+      ground.style.backgroundPosition = `${x}px ${y}px`;
     }
+    /*
+     * The backdrop pans with the trail's heading as well as with her, because
+     * on a bend the camera really is turning. Without it the distance sits
+     * still while the trail swings, and the curve reads as the ground sliding
+     * sideways rather than as you walking round something.
+     */
     const backdrop = root.querySelector("#backdrop");
-    if (backdrop) backdrop.style.transform = `translateX(${(-sim.yaw * 5).toFixed(2)}%)`;
+    if (backdrop) {
+      const pan = -sim.yaw * 5 - sim.heading * 7;
+      backdrop.style.transform = `translateX(${pan.toFixed(2)}%)`;
+    }
 
     rafId = requestAnimationFrame(frame);
   };

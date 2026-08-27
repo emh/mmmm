@@ -26,9 +26,9 @@
  * metre, which is nearer the dog's own world and reads as more intimate. This
  * is a game camera, not a survey instrument.
  */
-const FOCAL = 0.62;      // narrower FOV = things swell faster as they approach
-const HORIZON = 0.56;    // where the ground meets the distance, fraction from top
-const EYE = 0.95;        // camera height in metres
+export const FOCAL = 0.62;      // narrower FOV = things swell faster as they approach
+export const HORIZON = 0.56;    // where the ground meets the distance, fraction from top
+export const EYE = 0.95;        // camera height in metres
 
 const NEAR = 0.9;      // recycle once closer than this
 const FAR = 26;        // spawn out here -- beyond this the backdrop takes over
@@ -217,8 +217,9 @@ export class Corridor {
    * @param {number} dt     seconds
    * @param {number} speed  metres per second along the trail
    * @param {number} yaw    camera turn, in the same units the plates use
+   * @param {function} bend  (z) => lateral metres of the trail centreline at z
    */
-  update(dt, speed, yaw = 0) {
+  update(dt, speed, yaw = 0, bend = () => 0) {
     const { width: vw, height: vh } = this.el.getBoundingClientRect();
     if (!vw) return;
 
@@ -234,7 +235,10 @@ export class Corridor {
       const invZ = 1 / item.z;
       const screenW = vw * item.kind.width * FOCAL * invZ * item.jitter;
       const groundY = vh * HORIZON + vh * EYE * FOCAL * invZ;
-      const screenX = vw * 0.5 + (item.x - yaw * 2.6) * vw * FOCAL * invZ;
+      // Scenery x is measured from the trail centre, so a bend carries the
+      // whole forest with it. Anything else and the trail curves away through
+      // the trees.
+      const screenX = vw * 0.5 + (item.x + bend(item.z) - yaw * 2.6) * vw * FOCAL * invZ;
 
       const img = item.img;
       if (screenW < 1.2 || groundY < 0) { img.style.display = "none"; continue; }
