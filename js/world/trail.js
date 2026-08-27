@@ -15,6 +15,8 @@
  * never used; only the local turn rate is, and only to pan the backdrop.
  */
 
+import { regionMix } from "./regions.js";
+
 /** How far ahead the route is sampled, in metres. */
 const LOOK = 40;
 
@@ -556,6 +558,44 @@ export class Trail {
   /** Stop asking and keep the branch she had already picked. */
   decideAlone() {
     if (this.route[1]) this.route[1].ask = false;
+  }
+
+  /**
+   * Put her down in a named region. A development affordance, not a mechanic.
+   *
+   * Prefers a trail with BOTH ends in the region, so she arrives somewhere that
+   * reads as that place rather than halfway through a transition into it.
+   */
+  jumpTo(regionId) {
+    const whole = this.map.edges.filter((e) =>
+      this.map.nodes[e.a].region === regionId && this.map.nodes[e.b].region === regionId);
+    const any = this.map.edges.filter((e) =>
+      this.map.nodes[e.a].region === regionId || this.map.nodes[e.b].region === regionId);
+    const pool = whole.length ? whole : any;
+    if (!pool.length) return false;
+
+    const edge = pool[Math.floor(this.rand() * pool.length)];
+    const from = this.map.nodes[edge.a].region === regionId ? edge.a : edge.b;
+    this.route = [this.segment(edge.id, from)];
+    this.pos = this.route[0].len * 0.35;
+    this.aimAtNode = 0;
+    this.extend();
+
+    // Point the camera before sampling: the easing cannot turn it on a frame
+    // that covers no time and no distance, so it has to start correct.
+    const p = this.here();
+    const t0 = this.aimPoint();
+    const l = Math.hypot(t0.x - p.x, t0.y - p.y) || 1;
+    this.camTx = (t0.x - p.x) / l;
+    this.camTy = (t0.y - p.y) / l;
+    this.resample();
+    return true;
+  }
+
+  /** The ground she is on, as a blend of two regions. */
+  region() {
+    const seg = this.route[0];
+    return regionMix(this.map, seg.edge, seg.from, this.pos);
   }
 
   /** Her own position and facing on the map. */

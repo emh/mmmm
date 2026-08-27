@@ -17,6 +17,7 @@ import { Corridor } from "./ui/corridor.js";
 import { renderInspector } from "./ui/debug.js";
 import { save, load, clear } from "./storage.js";
 import { PLACES } from "./world/places.js";
+import { assignRegions, REGIONS } from "./world/regions.js";
 import { Trail } from "./world/trail.js";
 import { TrailMap } from "./world/trailmap.js";
 import { TrailPath } from "./ui/trailpath.js";
@@ -82,12 +83,13 @@ async function boot() {
    */
   const mapRng = makeRng(sim.state.game.seed ^ 0x5eed).float;
   sim.map = new TrailMap(mapRng);
+  assignRegions(sim.map, mapRng);
   sim.trail = new Trail(sim.map, mapRng);
 
   sim.corridor = new Corridor(root.querySelector("#corridor"), {
     count: 46,
     rand: makeRng(sim.state.game.seed).float,
-    set: PLACES[sim.state.dog.place].scenery,
+    set: REGIONS.cedar.scenery,
     clearance: (s) => sim.trail.clearance(s),
   });
   sim.animator = await Animator.load(root.querySelector("#dog"));
@@ -228,6 +230,7 @@ let clock = 0;
 function startAnimation() {
   let last = performance.now();
   const ground = root.querySelector("#ground");
+  const ground2 = root.querySelector("#ground2");
 
   const frame = (now) => {
     const dt = Math.min((now - last) / 1000, 0.1);   // clamp after a tab stall
@@ -274,22 +277,28 @@ function startAnimation() {
     const targetYaw = offTrailFor(sim.state) * 0.42;
     sim.yaw = (sim.yaw ?? 0) + (targetYaw - (sim.yaw ?? 0)) * (1 - Math.pow(0.06, dt));
 
-    // Surface and scenery follow the place, so somewhere new looks new
-    // underfoot and beside the trail, not just behind it.
+    /*
+     * Which part of the park she is in, and how far through the change if she
+     * is walking between two. Everything underfoot and beside the trail comes
+     * from this one number.
+     */
     const place = PLACES[sim.state.dog.place];
-    sim.corridor.setScenery(place.scenery || "forest");
-    if (ground && sim.groundKind !== place.ground) {
-      sim.groundKind = place.ground || "floor";
-      /*
-       * Just the forest floor now. The worn path used to be a second background
-       * layer here, but a background cannot curve -- it is drawn by TrailPath
-       * in screen space instead, sharing the corridor's projection.
-       *
-       * Ground textures are photographic and opaque, so they are JPEG.
-       */
-      ground.style.backgroundImage = `url("assets/scene/ground-${sim.groundKind}.jpg")`;
-      ground.style.backgroundRepeat = "repeat";
-      ground.style.backgroundSize = `${place.groundScale || 38}% auto`;
+    const mix = sim.trail.region();
+    sim.corridor.setScenery({ from: mix.from.scenery, to: mix.to.scenery, t: mix.t });
+
+    const dress = (el, region) => {
+      const want = `url("assets/scene/ground-${region.ground}.jpg")`;
+      if (el.dataset.ground === region.ground) return;
+      el.dataset.ground = region.ground;
+      el.style.backgroundImage = want;
+      el.style.backgroundRepeat = "repeat";
+      el.style.backgroundSize = `${region.groundScale}% auto`;
+    };
+    if (ground) dress(ground, mix.from);
+    if (ground2) {
+      dress(ground2, mix.to);
+      // The blend itself. Two superimposed planes, the far one fading in.
+      ground2.style.opacity = mix.t.toFixed(3);
     }
     sim.path.setTexture(place.path || null);
 
@@ -307,11 +316,11 @@ function startAnimation() {
     sim.path.draw(sim.travelled, sim.yaw, sim.bend, sim.trail.ghosts(), sim.trail.visibleTo);
     placeDog(root, sim, clock);
 
-    if (ground) {
-      const y = (sim.travelled * 34).toFixed(1);
-      const x = (-sim.yaw * 120).toFixed(1);
-      ground.style.backgroundPosition = `${x}px ${y}px`;
-    }
+    // Both planes scroll together, or the blend would slide against itself.
+    const gy = (sim.travelled * 34).toFixed(1);
+    const gx = (-sim.yaw * 120).toFixed(1);
+    if (ground) ground.style.backgroundPosition = `${gx}px ${gy}px`;
+    if (ground2) ground2.style.backgroundPosition = `${gx}px ${gy}px`;
     /*
      * The backdrop pans with the trail's heading as well as with her, because
      * on a bend the camera really is turning. Without it the distance sits
@@ -412,6 +421,22 @@ function bindControls() {
 
   addEventListener("keydown", (e) => {
     if (e.key === "d") { debugOn = !debugOn; corner.hidden = false; draw(); }
+
+    /*
+     * 1, 2, 3 -- drop into a region. A development affordance: the park is big
+     * enough that finding a particular part of it on foot is a long walk, and
+     * there is no map screen to do it from.
+     */
+    if (e.key === "1" || e.key === "2" || e.key === "3") {
+      const to = ["cedar", "rocky", "grove"][+e.key - 1];
+      if (!sim.trail.jumpTo(to)) return;
+      sim.asking = null;
+      sim.aside = 0;
+      sim.travelled = sim.trail.travelled;
+      // Lay the scenery out again, or the region she left walks with her.
+      sim.corridor.reseed(sim.travelled);
+      draw();
+    }
   });
 
   // §22: persist on visibility change, and stop simulating in the background.

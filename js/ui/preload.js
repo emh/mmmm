@@ -14,6 +14,7 @@
 
 import { PLACES } from "../world/places.js";
 import { SCENERY_SETS } from "./corridor.js";
+import { REGIONS } from "../world/regions.js";
 import { CLIPS, clipOwns } from "./animator.js";
 
 const CYCLES = "assets/molly/cycles/gaits";
@@ -50,9 +51,18 @@ export async function assetList() {
 
   for (const place of Object.values(PLACES)) {
     if (place.art) urls.add(`assets/scene/${place.art}.jpg`);
-    if (place.ground) urls.add(`assets/scene/ground-${place.ground}.jpg`);
     if (place.path) urls.add(`assets/scene/path-${place.path}.png`);
     for (const file of SCENERY_SETS[place.scenery] || []) urls.add(`${SCATTER}/${file}`);
+  }
+
+  /*
+   * Every region, not just the one she starts in. She can walk into any of
+   * them, and a region's ground arriving mid-transition is exactly the pop the
+   * interstitial exists to prevent.
+   */
+  for (const region of Object.values(REGIONS)) {
+    urls.add(`assets/scene/ground-${region.ground}.jpg`);
+    for (const file of region.scenery) urls.add(`${SCATTER}/${file}`);
   }
   return [...urls];
 }

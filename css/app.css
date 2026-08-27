@@ -84,7 +84,10 @@ html, body {
   perspective: 420px; perspective-origin: 50% 0%;
   overflow: hidden;
 }
-#ground {
+/* Two planes, exactly superimposed. The second holds the region she is walking
+   INTO and its opacity is the blend -- a background-image layer cannot be faded
+   on its own, and one plane cannot show two grounds at once. */
+#ground, #ground2 {
   position: absolute; inset: 0 0 auto 0; height: 380px;
   transform-origin: 50% 0%;
   transform: rotateX(72deg);
@@ -94,9 +97,10 @@ html, body {
    * A default here is a file reference that silently rots the next time the
    * texture set changes, which is exactly what happened.
    */
-  will-change: background-position;
+  will-change: background-position, opacity;
   filter: brightness(1.5) saturate(.85) contrast(.92);
 }
+#ground2 { opacity: 0; }
 /* The worn path. Drawn in screen space by trailpath.js rather than as a layer
    on #ground -- see that file for why the 3D plane cannot carry a curve. It
    fills the wrap, whose top edge is the horizon, so no transform is wanted. */

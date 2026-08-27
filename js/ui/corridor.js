@@ -69,13 +69,33 @@ const SCENERY = [
   { file: "w-boulder.png",  width: 1.6, weight: 3, minX: 1.4, maxX: 7,   anchor: 1 },
   { file: "w-sedge.png",    width: 1.2, weight: 4, minX: 1.0, maxX: 6,   anchor: 1 },
   { file: "w-driftwood.png",width: 2.0, weight: 2, minX: 1.5, maxX: 7,   anchor: 1 },
+
+  // Rocky ground.
+  { file: "rock-slab.png",  width: 1.7, weight: 3.5, minX: 1.4, maxX: 8.5, anchor: 1 },
+  { file: "rock-mossy.png", width: 1.1, weight: 3,   minX: 1.3, maxX: 8,   anchor: 1 },
+
+  /*
+   * The deciduous grove. Alders are slender and close-packed where the cedars
+   * are massive and far apart, so they get a small width and a high weight --
+   * that contrast is most of what makes the grove read as a different wood
+   * rather than the same one with different undergrowth.
+   */
+  /*
+   * A whole small tree, not a trunk segment. The cedars are drawn as segments
+   * and stretched to run off the top of the frame, because a cedar's crown is
+   * far above anything the camera can see. An alder's is not -- it is a five
+   * metre tree with branches and leaves you look straight at, so it is drawn
+   * complete and scaled honestly.
+   */
+  { file: "tree-alder.png", width: 2.6, weight: 4, minX: 2.0, maxX: 11, anchor: 1, spawnZ: 20 },
+  { file: "grass-tuft.png", width: 0.8, weight: 6,  minX: 1.0, maxX: 7,  anchor: 1 },
 ];
 
 const BY_FILE = Object.fromEntries(SCENERY.map((k) => [k.file, k]));
 
-function kindsFor(set) {
-  const files = SCENERY_SETS[set] || SCENERY_SETS.forest;
-  return files.map((f) => BY_FILE[f]).filter(Boolean);
+function kindsFor(files) {
+  const list = (files || SCENERY_SETS.forest).map((f) => BY_FILE[f]).filter(Boolean);
+  return list.length ? list : kindsFor(SCENERY_SETS.forest);
 }
 
 function pickKind(rand, kinds) {
@@ -108,7 +128,7 @@ export class Corridor {
    * @param {function} rand       seeded RNG, so a walk is reproducible (§37)
    */
   constructor(el, { count = 34, rand = Math.random, basePath = "assets/scene/scatter",
-                    set = "forest", clearance = () => 0 } = {}) {
+                    set = SCENERY_SETS.forest, clearance = () => 0 } = {}) {
     this.el = el;
     this.rand = rand;
     this.basePath = basePath;
@@ -187,17 +207,24 @@ export class Corridor {
    * Only items beyond arm's reach are respawned, so the change arrives with the
    * walk instead of popping in around her.
    */
-  setScenery(set) {
-    const kinds = kindsFor(set);
-    if (kinds.length && kinds[0] === this.kinds[0] && kinds.length === this.kinds.length) return;
-    this.kinds = kinds;
-    for (const item of this.items) {
-      if (item.z > 6) { item.z = item.kind.spawnZ ?? FAR; this.spawn(item); }
-    }
+  setScenery(mix) {
+    /*
+     * A blend of two regions, not a switch between them.
+     *
+     * Nothing is respawned when the mix changes. Items recycle as she walks
+     * anyway, and letting them take the new odds as they come is what makes a
+     * transition: one wood thins out and the other thickens over the length of
+     * the trail between them. Respawning on change instead replaces the far
+     * half of the scene at a stroke, which is a cut, not a walk.
+     */
+    this.kinds = kindsFor(mix.from);
+    this.kindsTo = kindsFor(mix.to);
+    this.mixT = mix.t || 0;
   }
 
   spawn(item) {
-    const kind = pickKind(this.rand, this.kinds);
+    const pool = this.kindsTo && this.rand() < this.mixT ? this.kindsTo : this.kinds;
+    const kind = pickKind(this.rand, pool);
     item.spawnedAt = kind.spawnZ ?? FAR;
     const side = this.rand() < 0.5 ? -1 : 1;
     item.kind = kind;
@@ -221,6 +248,23 @@ export class Corridor {
     item.jitter = 0.82 + this.rand() * 0.42;      // size variation within a kind
     item.img.src = `${this.basePath}/${kind.file}`;
     return item;
+  }
+
+  /**
+   * Throw every item away and lay the corridor out again.
+   *
+   * For a teleport, where letting the scenery recycle naturally would walk the
+   * old region along with her for the next twenty-odd metres.
+   */
+  reseed(travelled = 0) {
+    this.travelled = travelled;
+    const n = this.items.length;
+    this.items.forEach((item, i) => {
+      const reach = item.kind?.spawnZ ?? FAR;
+      item.z = NEAR + (reach - NEAR) * (i + 0.5) / n;
+      this.spawn(item);
+    });
+    this.sort();
   }
 
   /*

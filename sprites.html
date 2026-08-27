@@ -61,6 +61,7 @@ too. Check the sprite on magenta and look at the colour before removing anything
 <script type="module">
 import { CLIPS } from "./js/ui/animator.js";
 import { SCENERY_SETS } from "./js/ui/corridor.js";
+import { REGIONS } from "./js/world/regions.js";
 import { PLACES, PARKED } from "./js/world/places.js";
 
 const out = document.querySelector("#out");
@@ -179,6 +180,14 @@ for (const [dir, man] of [[TRANS, trans], [CYCLES, gaits]]) {
         sprite.feet != null ? `feet ${sprite.feet.toFixed(2)}` : ""));
     }
   }
+}
+
+// The three regions of the park.
+for (const region of Object.values(REGIONS)) {
+  const row = section(`region · ${region.id}`, { text: "in the game" });
+  row.appendChild(tile(`assets/scene/ground-${region.ground}.jpg`,
+                       `ground-${region.ground}.jpg`, "ground"));
+  for (const f of [...new Set(region.scenery)]) row.appendChild(tile(`${SCATTER}/${f}`, f));
 }
 
 // Scenery, grouped by the set that uses it.
