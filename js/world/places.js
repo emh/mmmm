@@ -1,5 +1,9 @@
 /**
- * The three MVP locations (PRD §31) and the spots inside them.
+ * The park (PRD §31) and the spots inside it.
+ *
+ * There is no home. She lives in the forest and the game never leaves it --
+ * which removes the one place where nothing she does is legible, and removes
+ * the need for an indoors special case in every renderer and pose mapping.
  *
  * Places are what the player navigates between. Spots are what Molly Mae
  * actually attends to -- they carry stimuli and they are the keys for place
@@ -8,31 +12,50 @@
  */
 
 export const PLACES = {
-  home: {
-    id: "home",
-    name: "Home",
-    blurb: "The house at the edge of the park.",
-    art: "cedar-far",              // placeholder until real home art exists
-    indoors: true,
-    connects: ["cedar_trail"],
-    spots: ["food_bowl", "water_bowl", "dog_bed", "back_door"],
-  },
   cedar_trail: {
     id: "cedar_trail",
     name: "Cedar Trail",
     blurb: "Packed earth through old growth.",
     art: "cedar-far",
-    connects: ["home", "creek_boardwalk"],
+    ground: "trail", groundScale: 38, scenery: "forest",
+    connects: ["gravel_loop", "creek_boardwalk"],
     spots: ["trailhead", "cedar_grove", "fern_hollow", "fallen_log", "junction"],
   },
   creek_boardwalk: {
     id: "creek_boardwalk",
     name: "Creek & Boardwalk",
-    // No corridor art of its own yet -- reuses the cedar backdrop and scenery.
     blurb: "Cedar planks over shallow water.",
-    art: "cedar-far",
-    connects: ["cedar_trail"],
+    art: "creek-far",
+    // Planks are small and repetitive; at the trail's texture scale they come
+    // out the size of railway sleepers.
+    ground: "boardwalk", groundScale: 13, scenery: "boardwalk", rail: true,
+    connects: ["cedar_trail", "creek"],
     spots: ["boardwalk_start", "plank_span", "creek_edge", "far_bank"],
+  },
+
+  /*
+   * Two more places, so the park stops being one corridor with a different
+   * floor. Each differs in all three of the things that make somewhere feel
+   * like somewhere: what is underfoot, what grows beside it, and what she can
+   * find there.
+   */
+  gravel_loop: {
+    id: "gravel_loop",
+    name: "Gravel Loop",
+    blurb: "A wide packed-gravel path, easy going.",
+    art: "cedar-far",
+    ground: "gravel", groundScale: 26, scenery: "forest",
+    connects: ["cedar_trail", "creek"],
+    spots: ["loop_bend", "big_cedar", "bramble_edge", "bench_stop"],
+  },
+  creek: {
+    id: "creek",
+    name: "The Creek",
+    blurb: "Shallow water over cobbles.",
+    art: "creek-far",
+    ground: "creekbed", groundScale: 22, scenery: "water",
+    connects: ["gravel_loop", "creek_boardwalk"],
+    spots: ["shingle_bar", "shallows", "deep_pool", "alder_bank"],
   },
 };
 
@@ -42,12 +65,6 @@ export const PLACES = {
  * appear here, with a per-visit chance.
  */
 export const SPOTS = {
-  // --- home -------------------------------------------------------------
-  food_bowl:   { id: "food_bowl",   name: "the food bowl",   place: "home", draws: { hunger: 1 }, stimuli: [] },
-  water_bowl:  { id: "water_bowl",  name: "the water bowl",  place: "home", draws: { thirst: 1 }, stimuli: [] },
-  dog_bed:     { id: "dog_bed",     name: "her bed",         place: "home", draws: { fatigue: 1 }, stimuli: [] },
-  back_door:   { id: "back_door",   name: "the back door",   place: "home", draws: { exercise: .6, exploration: .5 }, stimuli: [] },
-
   // --- cedar trail ------------------------------------------------------
   trailhead:   { id: "trailhead",   name: "the trailhead",   place: "cedar_trail",
                  draws: { exploration: .5 },
@@ -79,6 +96,34 @@ export const SPOTS = {
   creek_edge:      { id: "creek_edge",      name: "the creek edge", place: "creek_boardwalk",
                      draws: { thirst: .8, play: .7, curiosity: .5 },
                      stimuli: [{ id: "water", chance: 1 }, { id: "frog", chance: .30 }] },
+  // --- gravel loop ------------------------------------------------------
+  loop_bend:    { id: "loop_bend",    name: "the bend in the loop", place: "gravel_loop",
+                  draws: { exploration: .5 },
+                  stimuli: [{ id: "dog_scent", chance: .45 }, { id: "hiker", chance: .30 }] },
+  big_cedar:    { id: "big_cedar",    name: "the big cedar", place: "gravel_loop",
+                  draws: { curiosity: .6, prey: .5 },
+                  stimuli: [{ id: "squirrel", chance: .45 }, { id: "woodpecker", chance: .30 }] },
+  bramble_edge: { id: "bramble_edge", name: "the bramble edge", place: "gravel_loop",
+                  draws: { curiosity: .7, exploration: .5 },
+                  stimuli: [{ id: "berries", chance: .40 }, { id: "rabbit_scent", chance: .35 }] },
+  bench_stop:   { id: "bench_stop",   name: "the bench", place: "gravel_loop",
+                  draws: { social: .6, fatigue: .5 },
+                  stimuli: [{ id: "hiker", chance: .35 }, { id: "dog_scent", chance: .40 }] },
+
+  // --- the creek --------------------------------------------------------
+  shingle_bar:  { id: "shingle_bar",  name: "the shingle bar", place: "creek",
+                  draws: { exploration: .6, curiosity: .5 },
+                  stimuli: [{ id: "animal_tracks", chance: .50 }, { id: "stick", chance: .40 }] },
+  shallows:     { id: "shallows",     name: "the shallows", place: "creek",
+                  draws: { thirst: .9, play: .8 },
+                  stimuli: [{ id: "water", chance: 1 }, { id: "frog", chance: .40 }] },
+  deep_pool:    { id: "deep_pool",    name: "the deep pool", place: "creek",
+                  draws: { play: .7, curiosity: .5 },
+                  stimuli: [{ id: "water", chance: 1 }, { id: "salmon", chance: .25 }] },
+  alder_bank:   { id: "alder_bank",   name: "the alder bank", place: "creek",
+                  draws: { curiosity: .8 },
+                  stimuli: [{ id: "deer_scent", chance: .45 }, { id: "insects", chance: .35 }] },
+
   far_bank:        { id: "far_bank",        name: "the far bank", place: "creek_boardwalk",
                      // Only reachable across the plank span.
                      beyondCrossing: true,
@@ -106,6 +151,9 @@ export const STIMULI = {
   loud_noise:    { id: "loud_noise",    label: "a sudden noise",   drive: "security",   interest: .80, valence: -.55, startling: true },
   hollow_planks: { id: "hollow_planks", label: "hollow planks",    drive: "security",   interest: .40, valence: -.20 },
   // Discoverable only by investigating -- the §32 scenario payoff.
+  berries:       { id: "berries",       label: "ripe berries",     drive: "curiosity",  interest: .40, valence:  .20 },
+  rabbit_scent:  { id: "rabbit_scent",  label: "rabbit scent",     drive: "prey",       interest: .75, valence:  .25, scent: true },
+  salmon:        { id: "salmon",        label: "something in the pool", drive: "prey",  interest: .70, valence:  .20 },
   antler:        { id: "antler",        label: "a shed antler",    drive: "curiosity",  interest: .95, valence:  .70, treasure: true },
 };
 

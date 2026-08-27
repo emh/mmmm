@@ -1,7 +1,7 @@
 /**
  * PRD §32 MVP Scenario Test, run headlessly.
  *
- *   feed -> walk -> deer scent -> Follow -> antler -> home
+ *   treat -> walk -> deer scent -> Follow -> antler -> walk on
  *   -> later walk -> shows interest in the same place, unprompted
  *
  * "If this interaction feels convincing, the central design is working."
@@ -21,12 +21,13 @@ const say = (s) => console.log(s);
 
 say(`\n=== §32 scenario, seed ${seed} ===\n`);
 
-// 1. Player feeds the dog.
-sim.care("feed");
+// 1. Player gives her a treat. (There is no home and no bowl -- §31's "feed"
+//    is a treat on the trail now, and the scenario tests the same causal chain.)
+sim.care("treat");
 for (let i = 0; i < 8; i++) sim.tick();
-say(`1. Fed. hunger=${sim.state.dog.needs.hunger.toFixed(2)}  doing: ${sim.state.dog.behavior?.verb}`);
+say(`1. Treat given. hunger=${sim.state.dog.needs.hunger.toFixed(2)}  doing: ${sim.state.dog.behavior?.verb}`);
 
-// 2-3. Start a walk; travel Cedar Trail.
+// 2-3. Walk the Cedar Trail.
 sim.travelTo("cedar_trail");
 say(`2-3. On ${sim.state.dog.place} at ${sim.state.dog.spot}`);
 
@@ -61,10 +62,10 @@ const mem = placeMemory(sim.state.dog.memory, "fern_hollow");
 say(`8. fern_hollow -> interesting=${mem.associations.interesting.toFixed(3)} familiarity=${mem.familiarity.toFixed(3)}`);
 say(`   memories here: ${recall(sim.state.dog.memory, "fern_hollow").map(e => e.type).join(", ") || "none"}`);
 
-// 9. Return home; time passes.
-sim.goHome();
+// 9. Walk on; time passes.
+sim.travelTo("gravel_loop");
 for (let i = 0; i < 60; i++) sim.tick();
-say(`9. Home. day=${sim.state.game.day}`);
+say(`9. Moved on. day=${sim.state.game.day}`);
 
 // 10-11. A later walk: from the junction, where does she pull?
 sim.travelTo("cedar_trail");

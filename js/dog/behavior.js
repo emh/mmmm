@@ -10,7 +10,7 @@
  * that is not present in the current state.
  */
 
-import { STIMULI, SPOTS, PLACES } from "../world/places.js";
+import { STIMULI, SPOTS } from "../world/places.js";
 
 /**
  * A behaviour spec:
@@ -22,24 +22,18 @@ import { STIMULI, SPOTS, PLACES } from "../world/places.js";
  *   apply(ctx)    returns { needs?, drives?, emotion?, memory?, events? }
  */
 export const BEHAVIORS = {
-  eat: {
-    id: "eat", drive: "hunger", minutes: 6,
-    verb: () => "eating",
-    candidate: (c) => c.spot === "food_bowl" && c.bowlHasFood && c.needs.hunger > .15,
-    apply: (c) => ({ needs: { hunger: -.85 }, emotion: { valence: +.25 }, ateFood: true }),
-  },
   drink: {
     id: "drink", drive: "thirst", minutes: 2,
     verb: () => "drinking",
-    candidate: (c) => (c.spot === "water_bowl" || c.hasStimulus("water")) && c.needs.thirst > .12,
+    candidate: (c) => c.hasStimulus("water") && c.needs.thirst > .12,
     apply: () => ({ needs: { thirst: -.9 }, emotion: { valence: +.1 } }),
   },
   rest: {
     id: "rest", drive: "fatigue", minutes: 25,
-    verb: (c) => (c.spot === "dog_bed" ? "asleep" : "lying down"),
+    verb: () => "lying down",
     candidate: (c) => c.needs.fatigue > .35,
     apply: (c) => ({
-      needs: { fatigue: c.spot === "dog_bed" ? -.75 : -.30 },
+      needs: { fatigue: -.45 },
       emotion: { arousal: -.3, valence: +.05, fear: -.15 },
     }),
   },
@@ -63,7 +57,7 @@ export const BEHAVIORS = {
   },
   investigate_spot: {
     id: "investigate_spot", drive: "curiosity", minutes: 4,
-    verb: (c) => (outdoors(c) ? `sniffing around ${c.spotName}` : `pottering about by ${c.spotName}`),
+    verb: (c) => `sniffing around ${c.spotName}`,
     candidate: () => true,
     apply: (c) => ({
       drives: { curiosity: -.25, exploration: -.20 },
@@ -74,7 +68,7 @@ export const BEHAVIORS = {
   chase: {
     id: "chase", drive: "prey", minutes: 3,
     verb: (c) => `chasing ${c.preyLabel}`,
-    candidate: (c) => outdoors(c) && (c.hasStimulus("squirrel") || c.hasStimulus("frog")),
+    candidate: (c) => c.hasStimulus("squirrel") || c.hasStimulus("frog"),
     apply: (c) => ({
       needs: { fatigue: +.06 },
       drives: { prey: -.75, play: -.2 },
@@ -107,7 +101,7 @@ export const BEHAVIORS = {
   dig: {
     id: "dig", drive: "curiosity", minutes: 4,
     verb: () => "digging",
-    candidate: (c) => outdoors(c) && !SPOTS[c.spot].crossing && c.drives.curiosity > .5,
+    candidate: (c) => !SPOTS[c.spot].crossing && c.drives.curiosity > .5,
     apply: () => ({ drives: { curiosity: -.3 }, emotion: { arousal: +.2, valence: +.2 } }),
   },
   greet: {
@@ -170,22 +164,6 @@ export const BEHAVIORS = {
     candidate: () => true,
     apply: () => ({ emotion: { arousal: -.1, fear: -.05 } }),
   },
-  head_home: {
-    id: "head_home", drive: "security", minutes: 5,
-    verb: () => "heading home",
-    /*
-     * Only when the player asks, or when she is genuinely spent.
-     *
-     * Letting a frightened dog decide to go home on her own ends the walk
-     * unilaterally -- it breaks §2.1 (the player chooses opportunities) and it
-     * makes the §3 confidence arc unrecoverable, because she leaves the
-     * boardwalk entirely and nothing can bring her back that session.
-     * Fear should produce hesitation and retreat, not a walk home.
-     */
-    candidate: (c) => c.place !== "home" &&
-      (c.nudge?.encourage?.includes("head_home") || c.needs.fatigue > .88),
-    apply: () => ({ goHome: true, emotion: { arousal: -.1 } }),
-  },
 };
 
 /**
@@ -196,11 +174,6 @@ export const BEHAVIORS = {
  * which is what makes "I followed her and she found something" feel earned
  * rather than random.
  */
-/** Some behaviours only make sense outside. She does not dig up the kitchen. */
-function outdoors(c) {
-  return !PLACES[c.place].indoors;
-}
-
 function discoveryChance(c, scentId) {
   if (c.spotHasTreasure) return 0;            // already found here
   if (scentId !== "deer_scent") return .03;

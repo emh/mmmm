@@ -49,7 +49,6 @@ export function perceive(state, rng) {
     playerModel: state.playerModel,
     playerSupported: state.interaction.playerSupported,
     nudge: state.interaction.nudge,
-    bowlHasFood: state.world.bowlHasFood,
 
     rng,
   };

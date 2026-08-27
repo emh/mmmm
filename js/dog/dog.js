@@ -25,8 +25,8 @@ export function initialDog() {
     needs: initialNeeds(),
     drives: initialDrives(),
     emotion: { arousal: .25, valence: .35, fear: 0 },
-    place: "home",
-    spot: "dog_bed",
+    place: "cedar_trail",
+    spot: "trailhead",
     behavior: null,       // { id, spot, target, ticksLeft, signals }
     hasCrossed: false,    // has she ever crossed the plank span
     walking: false,

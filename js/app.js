@@ -9,8 +9,10 @@ import { initialState, Events } from "./state.js";
 import { Simulation, MINUTES_PER_TICK } from "./simulation.js";
 import { makeRng, freshSeed } from "./rng.js";
 import { perceive, salience } from "./dog/perception.js";
-import { contextualActions, contextLine, ACTIONS } from "./ui/actions.js";
-import { render, renderActions, placeDog, isTravelling, offTrailFor } from "./ui/render.js";
+import { ACTIONS } from "./ui/actions.js";
+import { render, placeDog, offTrailFor } from "./ui/render.js";
+import { Animator } from "./ui/animator.js";
+import { Gestures, gestureToIntent, intentToAction } from "./ui/gestures.js";
 import { Corridor } from "./ui/corridor.js";
 import { renderInspector } from "./ui/debug.js";
 import { save, load, clear } from "./storage.js";
@@ -48,11 +50,32 @@ async function boot() {
   sim.corridor = new Corridor(root.querySelector("#corridor"), {
     count: 46,
     rand: makeRng(sim.state.game.seed).float,
+    set: PLACES[sim.state.dog.place].scenery,
   });
+  sim.animator = await Animator.load(root.querySelector("#dog"));
+
+  // Camera state. These must be initialised: `undefined + speed * dt` is NaN,
+  // which silently freezes the world while every other reading looks correct.
   sim.herZ = 2.4;
   sim.travelled = 0;
-  startAnimation();
+  sim.speed = 0;
+  sim.yaw = 0;
 
+  /*
+   * Gestures share the simulation path with the buttons: both produce a nudge
+   * and let her own utility model choose (§2.1). So the dog learns the same
+   * thing about the player either way (§9).
+   */
+  sim.gestures = new Gestures(root.querySelector("#scene"), (g) => {
+    const intent = gestureToIntent(g, sim.state);
+    if (!intent) return;
+    sim.dispatch(Events.setPace(intent.pace));
+
+    const action = intentToAction(intent);
+    if (action) onAction(action);
+  });
+
+  startAnimation();
   bindControls();
   start();
   draw();
@@ -63,6 +86,8 @@ async function boot() {
       sim,
       go: (place, spot) => { sim.arriveAt(place, spot); draw(); },
       tick: (n = 1) => { for (let i = 0; i < n; i++) sim.tick(); draw(); },
+      go_to: (place) => { sim.travelTo(place); draw(); },
+      places: () => Object.keys(PLACES),
       trace: () => sim.lastTrace,
       state: () => sim.state,
     };
@@ -84,9 +109,6 @@ function stop() {
 let rafId = null;
 let clock = 0;
 
-/** A comfortable walking pace, metres per second. */
-const PACE = 1.3;
-
 function startAnimation() {
   let last = performance.now();
   const ground = root.querySelector("#ground");
@@ -96,15 +118,35 @@ function startAnimation() {
     last = now;
     clock += dt;
 
-    // She only travels when she is actually going somewhere. Standing and
-    // sniffing stops the world, which is the whole point of a follow camera.
-    const travelling = isTravelling(sim.state);
-    sim.speed = (sim.speed ?? 0) + ((travelling ? PACE : 0) - (sim.speed ?? 0)) * (1 - Math.pow(0.12, dt));
+    /*
+     * Pace comes from the animator, which gets it from the clip the simulation
+     * asked for. So the world only moves when she is actually walking, and it
+     * moves at the speed of the gait she chose -- an amble, a trot, or a
+     * chase. Standing and sniffing stops the world, which is the whole point
+     * of a follow camera.
+     */
+    sim.animator.update(dt, sim.travelled);
+    const target = sim.animator.pace;
+    sim.speed = (sim.speed ?? 0) + (target - (sim.speed ?? 0)) * (1 - Math.pow(0.12, dt));
     sim.travelled += sim.speed * dt;
 
     // The camera turns to keep her in view when she leaves the trail (§15A.2).
     const targetYaw = offTrailFor(sim.state) * 0.42;
     sim.yaw = (sim.yaw ?? 0) + (targetYaw - (sim.yaw ?? 0)) * (1 - Math.pow(0.06, dt));
+
+    // Surface and scenery follow the place, so somewhere new looks new
+    // underfoot and beside the trail, not just behind it.
+    const place = PLACES[sim.state.dog.place];
+    sim.corridor.setScenery(place.scenery || "forest");
+    if (ground && sim.groundKind !== place.ground) {
+      sim.groundKind = place.ground || "trail";
+      ground.style.backgroundImage = `url("assets/scene/ground-${sim.groundKind}.png")`;
+      // Texture scale is per surface: gravel and planks are much finer-grained
+      // than a packed-earth trail, and one global scale makes boardwalk planks
+      // come out the size of railway sleepers.
+      ground.style.backgroundSize = `${place.groundScale || 38}% auto`;
+    }
+    sim.corridor.setRail(!!place.rail);
 
     sim.corridor.update(dt, sim.speed, sim.yaw);
     placeDog(root, sim, clock);
@@ -131,29 +173,15 @@ function stopAnimation() {
 function draw() {
   render(root, sim);
 
-  const ctx = perceive(sim.state, sim.rng);
-  const actions = contextualActions(sim.state, ctx);
-  const line = contextLine(sim.state, ctx);
-  renderActions(root, actions, line, onAction);
-
-  renderTravel();
+  /*
+   * No action bar. Everything it offered is a gesture now -- call her back,
+   * send her on, wait, a hand on her, a treat, take a turning -- and a row of
+   * labelled verbs read like a command menu in a game whose premise is that
+   * you influence rather than command (§2.1).
+   */
 
   root.body.classList.toggle("debug", debugOn);
   if (debugOn) renderInspector(root.querySelector("#inspector"), sim);
-}
-
-/** Higher-level navigation (§14) -- no joystick, no steering. */
-function renderTravel() {
-  const el = root.querySelector("#travel");
-  const here = sim.state.dog.place;
-  el.innerHTML = "";
-  for (const id of PLACES[here].connects) {
-    const b = document.createElement("button");
-    b.className = "travel-btn";
-    b.textContent = PLACES[id].name;
-    b.onclick = () => { sim.travelTo(id); draw(); persist(); };
-    el.appendChild(b);
-  }
 }
 
 /* ---------------------------------------------------------------- input */
@@ -165,10 +193,9 @@ function onAction(action) {
 }
 
 function bindControls() {
-  for (const btn of root.querySelectorAll("[data-care]")) {
-    btn.onclick = () => { sim.care(btn.dataset.care); draw(); persist(); };
-  }
-
+  // Dev controls are hidden unless asked for.
+  const corner = root.querySelector("#corner");
+  if (new URLSearchParams(location.search).has("dev")) corner.hidden = false;
   root.querySelector("#toggle-debug").onclick = () => { debugOn = !debugOn; draw(); };
 
   root.querySelector("#reset").onclick = async () => {
@@ -178,7 +205,7 @@ function bindControls() {
   };
 
   addEventListener("keydown", (e) => {
-    if (e.key === "d") { debugOn = !debugOn; draw(); }
+    if (e.key === "d") { debugOn = !debugOn; corner.hidden = false; draw(); }
   });
 
   // §22: persist on visibility change, and stop simulating in the background.

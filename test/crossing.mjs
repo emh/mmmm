@@ -91,8 +91,8 @@ const afterFright = crossingAppetite(sim);
 const penaltyAfterFright = frightPenalty(sim);
 say(`after the fright          appetite: ${afterFright.toFixed(3)}  frightening=${placeMemory(sim.state.dog.memory,"plank_span").associations.frightening.toFixed(2)}  penalty=${penaltyAfterFright.toFixed(3)}`);
 
-// --- she goes home; a day passes; she comes back --------------------------
-sim.goHome();
+// --- she walks elsewhere; a day passes; she comes back --------------------
+sim.travelTo("cedar_trail");
 for (let i = 0; i < 200; i++) sim.tick();
 sim.travelTo("creek_boardwalk");
 sim.arriveAt("creek_boardwalk", "plank_span");

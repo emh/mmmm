@@ -34,14 +34,14 @@ export function initialState(seed) {
       weather: "clear",
       stimuli: {},                // spotId -> [stimulusId]
       found: {},                  // spotId -> [discovered thing]
-      bowlHasFood: false,
-      visitedPlaces: ["home"],
+      visitedPlaces: ["cedar_trail"],
     },
     playerModel: initialPlayerModel(),
     interaction: {
       context: null,              // what the player is being asked about
       actions: [],
       nudge: null,                // { encourage:[], discourage:[], strength, expires }
+      pace: "stop",               // what the player has asked for: stop | walk | run
       playerSupported: false,
       log: [],                    // recent observable events, newest last
     },
@@ -59,6 +59,7 @@ export const Events = {
   playerAction:  (action) => ({ type: "PLAYER_ACTION", action }),
   setContext:    (context, actions) => ({ type: "SET_CONTEXT", context, actions }),
   setNudge:      (nudge) => ({ type: "SET_NUDGE", nudge }),
+  setPace:       (pace) => ({ type: "SET_PACE", pace }),
   note:          (text, tone) => ({ type: "NOTE", text, tone }),
   care:          (kind) => ({ type: "CARE", kind }),
   replaceMemory: (memory) => ({ type: "REPLACE_MEMORY", memory }),
@@ -107,7 +108,7 @@ export function reduce(state, event) {
         : [...state.world.visitedPlaces, place];
       return {
         ...state,
-        dog: { ...state.dog, place, spot: event.spot, walking: place !== "home" },
+        dog: { ...state.dog, place, spot: event.spot, walking: true },
         world: { ...state.world, visitedPlaces: visited },
       };
     }
@@ -120,6 +121,15 @@ export function reduce(state, event) {
 
     case "SET_NUDGE":
       return { ...state, interaction: { ...state.interaction, nudge: event.nudge } };
+
+    /*
+     * Pace is what the PLAYER asked for, not what she is doing. She can ignore
+     * it -- stopping dead at a scent while you have asked for a walk is exactly
+     * the kind of thing this game is about (§2.1). It biases her, and it sets
+     * the ceiling on how fast the world moves.
+     */
+    case "SET_PACE":
+      return { ...state, interaction: { ...state.interaction, pace: event.pace } };
 
     case "PLAYER_ACTION":
       return {
@@ -185,7 +195,6 @@ function applyBehaviorResult(state, result) {
   if (result.drives)  dog = { ...dog, drives: addClamped(dog.drives, result.drives) };
   if (result.emotion) dog = { ...dog, emotion: addEmotion(dog.emotion, result.emotion) };
   if (result.crossed) dog = { ...dog, hasCrossed: true };
-  if (result.ateFood) world = { ...world, bowlHasFood: false };
 
   if (result.discovered) {
     const existing = world.found[dog.spot] || [];
@@ -200,10 +209,8 @@ function applyCare(state, kind) {
   let dog = state.dog;
   let world = state.world;
   switch (kind) {
-    case "feed":     world = { ...world, bowlHasFood: true }; break;
-    case "water":    dog = { ...dog, needs: addClamped(dog.needs, { thirst: -.9 }) }; break;
     case "treat":
-      dog = { ...dog, needs: addClamped(dog.needs, { hunger: -.15 }),
+      dog = { ...dog, needs: addClamped(dog.needs, { hunger: -.35 }),
                       emotion: addEmotion(dog.emotion, { valence: +.3, arousal: +.1 }) };
       break;
     case "comfort":

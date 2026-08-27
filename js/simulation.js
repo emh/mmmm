@@ -45,7 +45,7 @@ export class Simulation {
 
     // 1. Needs and drives advance.
     const dog = this.state.dog;
-    const walking = dog.place !== "home" && !dog.behavior?.resting;
+    const walking = !dog.behavior?.resting;
     const needs = advanceNeeds(dog.needs, MINUTES_PER_TICK, { walking });
     const drives = advanceDrives(dog.drives, MINUTES_PER_TICK, dog.traits);
     const emotion = settleEmotion(dog.emotion, MINUTES_PER_TICK);
@@ -118,7 +118,7 @@ export class Simulation {
     const nothingHere = ctx.stimuli.length === 0 ? .25 : 0;
     // Standing at an uncrossed crossing is a moment, not a place to drift out of.
     if (SPOTS[dog.spot].crossing && !dog.hasCrossed) return false;
-    if (dog.place !== "home" && this.rng.chance(restless * .22 + nothingHere)) {
+    if (this.rng.chance(restless * .22 + nothingHere)) {
       const next = chooseNextSpot(this.state, this.rng);
       if (next !== dog.spot) {
         this.arriveAt(dog.place, next);
@@ -140,9 +140,8 @@ export class Simulation {
     const here = PLACES[place].spots;
     const wants = [];
 
-    if (needs.hunger > .20 && this.state.world.bowlHasFood) wants.push(["food_bowl", needs.hunger]);
-    if (needs.thirst > .40) wants.push(["water_bowl", needs.thirst], ["creek_edge", needs.thirst * .9]);
-    if (needs.fatigue > .60) wants.push(["dog_bed", needs.fatigue]);
+    // She drinks where there is water; there is nowhere else to go for it.
+    if (needs.thirst > .40) wants.push(["creek_edge", needs.thirst], ["shallows", needs.thirst]);
 
     const reachable = wants
       .filter(([spot]) => here.includes(spot))
@@ -209,7 +208,6 @@ export class Simulation {
       this.dispatch(Events.replaceMemory(m));
       this.dispatch(Events.replaceMemory(m));
     }
-    if (result.goHome) this.goHome();
 
     this.dispatch(Events.beginBehavior(null));
     if (result.moveTo) this.dispatch(Events.moveTo(null, result.moveTo));
@@ -286,14 +284,12 @@ export class Simulation {
   }
 
   travelTo(placeId) {
-    const entry = { home: "back_door", cedar_trail: "trailhead", creek_boardwalk: "boardwalk_start" }[placeId];
+    // Arrive at the place's first spot. A hardcoded map silently breaks every
+    // time a location is added, and fails deep inside stimulus rolling rather
+    // than at the call.
+    const entry = PLACES[placeId].spots[0];
     this.arriveAt(placeId, entry);
     this.note(`You walk to ${PLACES[placeId].name}.`, "plain");
-  }
-
-  goHome() {
-    this.travelTo("home");
-    this.dispatch(Events.moveTo("home", "dog_bed"));
   }
 
   /* -------------------------------------------------------- player action */

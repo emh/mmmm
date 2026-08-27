@@ -6,6 +6,8 @@
  * hold. No wrapper library; the raw API is enough for one object store.
  */
 
+import { PLACES, SPOTS } from "./world/places.js";
+
 const DB_NAME = "molly-mae";
 const DB_VERSION = 1;
 const STORE = "saves";
@@ -128,7 +130,41 @@ function serialise(state) {
  * step forward here rather than discarding a player's dog.
  */
 function migrate(save) {
-  if (save.game?.version === 1) return save;
-  console.warn("unknown save version", save.game?.version, "-- starting fresh");
-  return null;
+  if (save.game?.version !== 1) {
+    console.warn("unknown save version", save.game?.version, "-- starting fresh");
+    return null;
+  }
+  return repair(save);
+}
+
+/**
+ * Put a save back on its feet if the world has moved under it.
+ *
+ * Places and spots change as the park grows, and a save can also be written
+ * mid-failure -- one was persisted with a place but no spot, which then threw
+ * during perception on every subsequent boot. A save that cannot be loaded is
+ * indistinguishable from a lost dog, so repair what can be repaired rather than
+ * discarding her memories over a bad field.
+ */
+function repair(save) {
+  const dog = save.dog;
+  if (!dog) return null;
+
+  if (!PLACES[dog.place]) {
+    console.warn(`save: unknown place "${dog.place}" -- putting her back on the trail`);
+    dog.place = "cedar_trail";
+    dog.spot = null;
+  }
+  if (!dog.spot || !SPOTS[dog.spot] || SPOTS[dog.spot].place !== dog.place) {
+    const first = PLACES[dog.place].spots[0];
+    console.warn(`save: spot "${dog.spot}" is not in ${dog.place} -- moving her to ${first}`);
+    dog.spot = first;
+  }
+  // Memories of places that no longer exist are harmless but never useful.
+  if (dog.memory?.places) {
+    for (const id of Object.keys(dog.memory.places)) {
+      if (!SPOTS[id]) delete dog.memory.places[id];
+    }
+  }
+  return save;
 }

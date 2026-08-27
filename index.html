@@ -14,44 +14,25 @@
 
   <!-- World view: the overwhelming majority of the viewport (§15).
        Staged as a trail corridor seen from behind her (§15A). -->
-  <div id="scene">
+  <div id="scene" tabindex="0">
     <div id="backdrop"></div>
     <!-- Atmosphere sits directly on the backdrop. It must come BEFORE the
          scenery and the dog, or it paints over the entire world. -->
     <div id="scene-shade"></div>
     <div id="ground-wrap"><div id="ground"></div><div id="ground-fade"></div></div>
     <div id="corridor"></div>
-    <div id="dog" role="img" aria-label="Molly Mae"><img id="dog-img" alt=""></div>
+    <div id="shadow"></div>
+    <div id="dog" role="img" aria-label="Molly Mae"></div>
 
-    <header id="status">
-      <div id="place-name"></div>
-      <div id="clock"></div>
-    </header>
-
-    <div id="read">
-      <div id="spot-name"></div>
-      <div id="signals"></div>
-    </div>
-
-    <div id="log" aria-live="polite"></div>
+    <!-- Gesture feedback: a mark where you touched, never a word. -->
+    <div id="gesture-ink"></div>
   </div>
 
-  <!-- Contextual action bar (§14) -->
-  <div id="bar">
-    <p id="context-line"></p>
-    <div id="actions"></div>
-    <div id="travel"></div>
-  </div>
-
-  <!-- Care actions (§12). Only meaningful at home. -->
-  <div id="care">
-    <button data-care="feed">Feed</button>
-    <button data-care="water">Water</button>
-    <button data-care="treat">Treat</button>
-    <button data-care="comfort">Comfort</button>
-    <button data-care="groom">Groom</button>
+  <!-- Development only: the dog inspector (§37) and a reset that forgets her.
+       Neither belongs in the shipped game; ?dev=1 or the `d` key shows them. -->
+  <div id="corner" hidden>
     <button id="toggle-debug" title="Dog inspector (d)">⚙</button>
-    <button id="reset" title="Start over">⟲</button>
+    <button id="reset" title="Forget her and start over">⟲</button>
   </div>
 
 </main>

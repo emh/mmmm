@@ -90,6 +90,7 @@ js/
     encounters.js   what the park offers moment to moment
   ui/
     render.js       DOM scene (§28 option A)
+    animator.js     her animation state machine, driven by the simulation
     rig.js          the cutout rig — breathing, head carriage, tail, weight
     camera.js       the follow camera — yaw and plate parallax (§15A)
     corridor.js     the trail corridor — perspective scenery, recycled and swept past
@@ -132,12 +133,10 @@ that is easy to fall back into.
 - The rig is built from the **walk** sprite only, so resting and sitting still
   show a standing dog while the log says otherwise. `molly-body-sit.png` needs
   its own rig and a cross-fade.
-- The full sprite set — standing, walk/trot/gallop, and five transitions —
-  runs autonomously in `camera-test.html`, but none of it is in the game yet;
-  the game still shows flat sprites.
-- The director is random, not driven by the simulation. Wiring it to the real
-  behaviour selection (`js/dog/utility.js`) is the next step, and is what makes
-  her movement *mean* something rather than just look alive.
+- Only the cedar trail has scenery. The creek/boardwalk borrows it, which is
+  wrong for a boardwalk over water, and home has no art of its own.
+- She has one direction of travel. Turning off the trail is staged with a
+  lateral offset and a camera yaw, not with her actually walking off it.
 - Home has no art and no corridor — it reuses the cedar backdrop under a dim
   indoor treatment, with the corridor and moving ground hidden.
 - Only the cedar trail has scenery and a backdrop. The creek/boardwalk and home

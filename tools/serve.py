@@ -20,6 +20,10 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 BUILD = str(int(time.time()))
 IMPORT_RE = re.compile(rb'(\bfrom\s*|\bimport\s*\(\s*)([\'"])(\.{1,2}/[^\'"?]+\.js)\2')
+# Entry points in HTML need the same treatment: versioning imports inside a
+# module graph is useless if the browser serves a stale copy of the file that
+# pulls the graph in.
+ASSET_RE = re.compile(rb'((?:src|href)\s*=\s*)(["\'])([^"\'?:]+\.(?:js|css))\2')
 
 
 class NoCacheHandler(SimpleHTTPRequestHandler):
@@ -36,16 +40,20 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
 
     def send_head(self):
         path = self.translate_path(self.path)
-        if not path.endswith(".js") or not os.path.isfile(path):
+        is_js = path.endswith(".js")
+        is_html = path.endswith(".html")
+        if not (is_js or is_html) or not os.path.isfile(path):
             return super().send_head()
 
+        stamp = b"?v=" + BUILD.encode()
         with open(path, "rb") as f:
-            body = IMPORT_RE.sub(
-                lambda m: m.group(1) + m.group(2) + m.group(3) + b"?v=" + BUILD.encode() + m.group(2),
-                f.read())
+            body = f.read()
+        pattern = IMPORT_RE if is_js else ASSET_RE
+        body = pattern.sub(
+            lambda m: m.group(1) + m.group(2) + m.group(3) + stamp + m.group(2), body)
 
         self.send_response(200)
-        self.send_header("Content-Type", "text/javascript")
+        self.send_header("Content-Type", "text/javascript" if is_js else "text/html")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         return io.BytesIO(body)

@@ -48,12 +48,10 @@ function personalityBias(spec, traits) {
     case "play":
     case "splash":           return .5 + traits.playfulness * 1.0;
     case "greet":            return .4 + traits.sociability * 1.1;
-    case "eat":              return .6 + traits.foodDrive * .8;
     case "cross_crossing":   return .25 + traits.boldness * 1.3;
     case "retreat":          return 1.5 - traits.boldness * .8;
     case "follow_player":    return .5 + (1 - traits.independence) * 1.0;
     case "look_at_player":   return .4 + (1 - traits.independence) * 1.1;
-    case "head_home":        return .7 + (1 - traits.boldness) * .5;
     default:                 return 1;
   }
 }
@@ -74,9 +72,8 @@ function environmentalRelevance(spec, ctx) {
     case "splash":  return ctx.hasStimulus("water") ? 1.6 : 0;
     case "play":    return ctx.hasStimulus("stick") ? 1.5 : .7;
     case "greet":   return ctx.hasStimulus("hiker") ? 1.4 : 1.0;
-    case "drink":   return ctx.hasStimulus("water") || ctx.spot === "water_bowl" ? 1.4 : 0;
-    case "rest":    return ctx.spot === "dog_bed" ? 1.5 : .8;
-    case "eat":     return 1.4;
+    case "drink":   return ctx.hasStimulus("water") ? 1.4 : 0;
+    case "rest":    return .9;
     case "cross_crossing": return here.crossing ? 1.2 : 0;
     default: {
       // Generic: does this spot pull on the drive this behaviour serves?
@@ -100,10 +97,6 @@ function memoryAssociation(spec, ctx) {
   if (spec.id === "retreat" || spec.id === "wait") {
     return .6 + frightening * 1.8;
   }
-  if (spec.id === "head_home") {
-    return .7 + frightening * 1.2;
-  }
-
   let value = .55 + interesting * .9 + safe * .35 - frightening * 1.1;
 
   if (spec.id === "investigate_scent" && ctx.strongestScent) {
@@ -143,7 +136,6 @@ function situationalModifier(spec, ctx) {
   if (ctx.lastBehavior === spec.id && spec.id !== "follow_player") m *= .35;
 
   // Needs that have become urgent override the ambient pull of the forest.
-  if (spec.id === "eat"  && ctx.needs.hunger > .8) m *= 2.2;
   if (spec.id === "drink" && ctx.needs.thirst > .8) m *= 2.2;
 
   return m;

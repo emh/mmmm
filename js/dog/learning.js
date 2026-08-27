@@ -58,7 +58,6 @@ export const ACTION_LESSONS = {
   offer_treat: [["givesTreats", 1]],
   play:        [["playsOften", 1]],
   comfort:     [["respondsCalmly", 1]],
-  head_home:   [["permitsExploration", .25]],
   keep_going:  [["permitsExploration", .7]],
 };
 

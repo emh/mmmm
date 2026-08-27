@@ -40,6 +40,21 @@ const FAR = 26;        // spawn out here -- beyond this the backdrop takes over
  * scale work out: a 1.4 m fern and a 2.6 m trunk sit at the same distance and
  * come out the right size relative to each other without hand-tuning.
  */
+/**
+ * Scenery sets per surface.
+ *
+ * A location is not just a backdrop and a ground texture -- it is what grows
+ * beside the trail. Sharing one set across the whole park made the creek and
+ * the boardwalk read as the same place with a different floor.
+ */
+export const SCENERY_SETS = {
+  forest: ["trunk-a.png", "trunk-b.png", "trunk-c.png", "trunk-d.png",
+           "under-fern.png", "under-salal.png", "under-log.png", "under-stump.png"],
+  water:  ["trunk-b.png", "trunk-d.png", "under-fern.png",
+           "w-boulder.png", "w-sedge.png", "w-driftwood.png"],
+  boardwalk: ["trunk-a.png", "trunk-c.png", "under-fern.png", "under-salal.png"],
+};
+
 const SCENERY = [
   { file: "trunk-a.png",    width: 2.1, weight: 1.6, minX: 2.4, maxX: 11, anchor: 1, spawnZ: 15, tall: true },
   { file: "trunk-b.png",    width: 1.3, weight: 1.6, minX: 2.2, maxX: 12, anchor: 1, spawnZ: 15, tall: true },
@@ -49,18 +64,39 @@ const SCENERY = [
   { file: "under-salal.png",width: 1.3, weight: 4, minX: 1.1, maxX: 7,   anchor: 1 },
   { file: "under-log.png",  width: 2.6, weight: 1.4, minX: 1.6, maxX: 7, anchor: 1 },
   { file: "under-stump.png",width: 1.4, weight: 1.2, minX: 1.5, maxX: 7, anchor: 1 },
+
+  // Water and boardwalk furniture.
+  { file: "w-boulder.png",  width: 1.6, weight: 3, minX: 1.4, maxX: 7,   anchor: 1 },
+  { file: "w-sedge.png",    width: 1.2, weight: 4, minX: 1.0, maxX: 6,   anchor: 1 },
+  { file: "w-driftwood.png",width: 2.0, weight: 2, minX: 1.5, maxX: 7,   anchor: 1 },
 ];
 
-const TOTAL_WEIGHT = SCENERY.reduce((s, k) => s + k.weight, 0);
+const BY_FILE = Object.fromEntries(SCENERY.map((k) => [k.file, k]));
 
-function pickKind(rand) {
-  let roll = rand() * TOTAL_WEIGHT;
-  for (const kind of SCENERY) {
+function kindsFor(set) {
+  const files = SCENERY_SETS[set] || SCENERY_SETS.forest;
+  return files.map((f) => BY_FILE[f]).filter(Boolean);
+}
+
+function pickKind(rand, kinds) {
+  const total = kinds.reduce((s, k) => s + k.weight, 0);
+  let roll = rand() * total;
+  for (const kind of kinds) {
     roll -= kind.weight;
     if (roll <= 0) return kind;
   }
-  return SCENERY[0];
+  return kinds[0];
 }
+
+/**
+ * A handrail: posts at a regular spacing on both sides of the trail.
+ *
+ * This cannot be scatter. Posts at random distances and random offsets read as
+ * posts lying about, never as a fence -- a fence is regular, and the regularity
+ * IS the signal. Fixed lateral offset, even spacing, both sides, recycled as
+ * they pass.
+ */
+const RAIL = { file: "w-railpost.png", width: 0.5, x: 1.45, spacing: 2.6, anchor: 1 };
 
 export class Corridor {
   /**
@@ -68,10 +104,12 @@ export class Corridor {
    * @param {number} count        how many scenery items exist at once
    * @param {function} rand       seeded RNG, so a walk is reproducible (§37)
    */
-  constructor(el, { count = 34, rand = Math.random, basePath = "assets/scene/scatter" } = {}) {
+  constructor(el, { count = 34, rand = Math.random, basePath = "assets/scene/scatter",
+                    set = "forest" } = {}) {
     this.el = el;
     this.rand = rand;
     this.basePath = basePath;
+    this.kinds = kindsFor(set);
     this.items = [];
 
     for (let i = 0; i < count; i++) {
@@ -95,10 +133,45 @@ export class Corridor {
       this.items.push(item);
     }
     this.sort();
+
+    // Handrail posts, built once and shown only where a place has a rail.
+    this.rails = [];
+    for (let i = 0; i < 14; i++) {
+      const img = document.createElement("img");
+      img.className = "scatter rail";
+      img.draggable = false;
+      img.alt = "";
+      img.src = `${this.basePath}/${RAIL.file}`;
+      img.style.display = "none";
+      el.appendChild(img);
+      this.rails.push({ img, side: i % 2 ? 1 : -1, z: NEAR + Math.floor(i / 2) * RAIL.spacing });
+    }
+    this.hasRail = false;
+  }
+
+  /** Whether this place has a handrail alongside the trail. */
+  setRail(on) {
+    this.hasRail = on;
+    if (!on) for (const r of this.rails) r.img.style.display = "none";
+  }
+
+  /**
+   * Swap the scenery set when she moves to a different kind of place.
+   *
+   * Only items beyond arm's reach are respawned, so the change arrives with the
+   * walk instead of popping in around her.
+   */
+  setScenery(set) {
+    const kinds = kindsFor(set);
+    if (kinds.length && kinds[0] === this.kinds[0] && kinds.length === this.kinds.length) return;
+    this.kinds = kinds;
+    for (const item of this.items) {
+      if (item.z > 6) { item.z = item.kind.spawnZ ?? FAR; this.spawn(item); }
+    }
   }
 
   spawn(item) {
-    const kind = pickKind(this.rand);
+    const kind = pickKind(this.rand, this.kinds);
     item.spawnedAt = kind.spawnZ ?? FAR;
     const side = this.rand() < 0.5 ? -1 : 1;
     item.kind = kind;
@@ -200,6 +273,36 @@ export class Corridor {
         : "none") + shadow;
     }
 
+
+    if (this.hasRail) this.updateRails(dt, speed, yaw, vw, vh);
+  }
+
+  updateRails(dt, speed, yaw, vw, vh) {
+    const span = RAIL.spacing * (this.rails.length / 2);
+    for (const r of this.rails) {
+      r.z -= speed * dt;
+      if (r.z < NEAR) r.z += span;
+
+      const invZ = 1 / r.z;
+      const screenW = vw * RAIL.width * FOCAL * invZ;
+      const groundY = vh * HORIZON + vh * EYE * FOCAL * invZ;
+      const screenX = vw * 0.5 + (r.side * RAIL.x - yaw * 2.6) * vw * FOCAL * invZ;
+
+      const img = r.img;
+      if (screenW < 1 || groundY < 0) { img.style.display = "none"; continue; }
+      const h = screenW * (img.naturalHeight / (img.naturalWidth || 1));
+      img.style.display = "";
+      img.style.width = `${screenW.toFixed(1)}px`;
+      img.style.height = "auto";
+      img.style.left = `${(screenX - screenW / 2).toFixed(1)}px`;
+      img.style.top = `${(groundY - h * RAIL.anchor).toFixed(1)}px`;
+      img.style.zIndex = String(depthLayer(r.z));
+      // Mirror the far side so the rail stub always points in toward the walkway.
+      img.style.transform = r.side > 0 ? "scaleX(-1)" : "";
+
+      const haze = Math.min(1, Math.max(0, (r.z - 5) / (FAR - 5)));
+      img.style.opacity = (1 - haze * 0.72).toFixed(3);
+    }
   }
 }
 

@@ -550,3 +550,60 @@ placed by a shared rule. Each clip instead carries its own `ground` — the canv
 fraction that sits on the trail — and placement uses that. Measured across
 switches, her shadow holds to within ~18px, and that residue is her drifting in
 and out of following distance rather than a registration mismatch.
+
+## Connecting the animation to the simulation
+
+`js/ui/animator.js` owns every sprite and the state machine between them. The
+game does not pick frames — it says what she is *doing*, via
+`poseForBehaviour(state)`, and the animator works out how to get there and back.
+
+| behaviour (from `js/dog/utility.js`) | pose |
+| --- | --- |
+| `follow_player` | walk, or trot when she is keen |
+| `head_home`, `cross_crossing` | trot |
+| `chase` | gallop |
+| `look_at_player` | **glance** — the check-in of §9 |
+| `investigate_scent`, `dig`, `greet`, `splash`, `drink`, `eat`, `play` | turn90, side-on to it |
+| `wait`, `retreat`, or fear > 0.42 | turn180, stopped and facing you |
+| `rest` | lie |
+| indoors | sit |
+
+**Pace comes from the pose, not the other way round.** The animator reports the
+clip's own speed, the camera eases toward it, and the corridor moves at that
+rate — so the world only travels when she is actually walking, and it travels at
+the speed of the gait she chose.
+
+### Two mappings that needed pulling back
+
+`investigate_spot` is her generic pottering-about behaviour and fires
+constantly. Mapping it to a ninety-degree turn made her pivot every few seconds
+like a weathervane; it is now a pause, which reads the same and costs nothing.
+
+`follow_player` defaulted to a trot because the drive thresholds were low. An
+ordinary walk is the default now, and she only picks up when she is genuinely
+keen.
+
+## Surfaces and structure
+
+Each place sets its own ground texture, texture scale, scenery set, and whether
+it has a handrail:
+
+```js
+creek_boardwalk: { ground: "boardwalk", groundScale: 13, scenery: "boardwalk", rail: true }
+```
+
+**Texture scale is per surface.** One global value cannot serve packed earth and
+cedar planks: at the trail's scale, boardwalk planks came out the size of
+railway sleepers. Gravel and creek cobbles need their own values too — the
+grain size of the real material is what the number encodes.
+
+**A fence is not scenery.** Rail posts were first added to the random scatter,
+which cannot work: scatter puts things at random distances and random lateral
+offsets, and a fence is *regular* — the regularity is the entire signal.
+Randomly placed posts read as posts lying about. The handrail is now its own
+structure in `corridor.js`: fixed lateral offset, even spacing, both sides,
+recycled as it passes, with the far side mirrored so the rail stub always points
+in toward the walkway.
+
+The same will be true of anything else built rather than grown — a bridge deck,
+a boardwalk edge, a fence line, a set of steps.
