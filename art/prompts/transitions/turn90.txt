@@ -1,0 +1,30 @@
+A 5-frame sprite sheet showing ONE continuous movement, read left to right.
+
+THE MOVEMENT: she pivots a quarter turn to her own left, stepping her front feet round while her hindquarters follow
+
+Frame 1 is her standing squarely and still. The final frame is her standing in full side profile, facing to the viewer's left. The frames
+between them are that single movement, spaced evenly in time, so that playing them
+in order reads as one smooth action.
+
+This is NOT a looping cycle. It plays once, from standing to the final pose, and
+stops there.
+
+THE DOG: Molly Mae, a STRAIGHT-HAIRED labradoodle -- flat shaggy coat, NOT curly, NOT wavy, NOT a fleece or curly doodle coat. Warm reddish-copper coat (#925624 to #B47A44) with subtle tonal variation, deepest rust (#7C4019) in the shadowed flanks and sunlit copper edges (#CCA477). A distinctive pale cream shaggy beard and muzzle (#DAD0C2) with warm gray around the mouth (#9C8C7A). Long floppy ears that hang DOWN close against the head and never stand up. Dark nose and warm expressive brown eyes (#4A3D32). Long legs, athletic and sturdy build. A young adult female dog. She wears no collar, no harness and no tags.
+
+VIEW: Frame 1 is the standing pose seen from DIRECTLY BEHIND. As she turns, the view of her changes naturally with her body -- that rotation is the point of the movement.
+
+CONSTANT IN EVERY FRAME -- these must not vary at all:
+- her overall size; she is exactly the same distance from the viewer throughout
+- her identity: coat colour and texture, floppy ears, shaggy beard, leg length,
+  tail shape, body proportions
+- the ground line she stands on
+- the lighting, from the upper left
+
+LAYOUT: 5 drawings of the same dog in one evenly spaced row, all at the same
+scale, all standing on the same invisible ground line.
+
+STYLE: Detailed naturalistic illustration in the register of a field guide or a national park interpretive sign: careful observed rendering, fine graphite-and-ink linework, visible individual hair strands and coat texture, accurate animal anatomy, soft directional light, restrained natural colour. Warm paper-toned ground. The care and specificity of a naturalist's plate, not a cartoon and not a photograph. A polished, readable silhouette suitable for a game sprite.
+
+Plain flat pure-white background, with a clear empty gap between frames.
+No cell borders, no grid lines, no labels, no text, no numbers, no scenery, no
+props, no extra animals, no overlapping frames, no cast shadows between frames.

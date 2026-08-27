@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2C3927">
+<title>Mighty Miss Molly Mae</title>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<main id="app">
+
+  <!-- World view: the overwhelming majority of the viewport (§15).
+       Staged as a trail corridor seen from behind her (§15A). -->
+  <div id="scene">
+    <div id="backdrop"></div>
+    <!-- Atmosphere sits directly on the backdrop. It must come BEFORE the
+         scenery and the dog, or it paints over the entire world. -->
+    <div id="scene-shade"></div>
+    <div id="ground-wrap"><div id="ground"></div><div id="ground-fade"></div></div>
+    <div id="corridor"></div>
+    <div id="dog" role="img" aria-label="Molly Mae"><img id="dog-img" alt=""></div>
+
+    <header id="status">
+      <div id="place-name"></div>
+      <div id="clock"></div>
+    </header>
+
+    <div id="read">
+      <div id="spot-name"></div>
+      <div id="signals"></div>
+    </div>
+
+    <div id="log" aria-live="polite"></div>
+  </div>
+
+  <!-- Contextual action bar (§14) -->
+  <div id="bar">
+    <p id="context-line"></p>
+    <div id="actions"></div>
+    <div id="travel"></div>
+  </div>
+
+  <!-- Care actions (§12). Only meaningful at home. -->
+  <div id="care">
+    <button data-care="feed">Feed</button>
+    <button data-care="water">Water</button>
+    <button data-care="treat">Treat</button>
+    <button data-care="comfort">Comfort</button>
+    <button data-care="groom">Groom</button>
+    <button id="toggle-debug" title="Dog inspector (d)">⚙</button>
+    <button id="reset" title="Start over">⟲</button>
+  </div>
+
+</main>
+
+<aside id="inspector" aria-label="Dog inspector"></aside>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

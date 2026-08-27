@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Molly Mae — Staging Bench</title>
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  body { margin:0; background:var(--paper); color:var(--deep-forest-green);
+         font:13px/1.5 ui-monospace,Menlo,monospace; }
+  .wrap { display:grid; grid-template-columns:auto 310px; gap:22px; padding:18px; align-items:start; }
+  @media (max-width:760px){ .wrap{grid-template-columns:1fr} }
+
+  #viewport {
+    position:relative; width:375px; height:730px; overflow:hidden;
+    border:1px solid var(--stone-gray); border-radius:14px;
+    background:var(--deep-forest-green);
+  }
+  /* The distant canopy. Static: walking a few metres does not change it. */
+  #backdrop {
+    position:absolute; inset:-6% -18%;
+    background-size:cover;
+    will-change:transform;
+    /* Pushed back so it reads as distance rather than competing with the
+       scenery in front of it. It is the canopy and the haze, not the scene. */
+    /* Only the upper part of this plate is used now -- the canopy and the
+       distant trunks. Its painted ground sits below the frame, replaced by the
+       real ground plane. */
+    background-position: center 8%;
+    filter: blur(2.2px) brightness(1.08) saturate(.74) contrast(.94);
+  }
+  /* Scenery lives here, each item absolutely placed by the projection. */
+  /*
+   * The ground: a real 3D plane laid flat under the camera.
+   *
+   * This has to be its own element rather than part of the backdrop. When the
+   * trail was painted into the backdrop, pushing the backdrop back optically --
+   * which is what makes it read as distance -- blurred the ground she walks on
+   * along with it. Separating them also means the ground can actually move,
+   * which is most of what "travelling down a trail" means.
+   *
+   * The texture tiles vertically (tools/seamless.py), so scrolling
+   * background-position-y is genuine forward travel with nothing to reset.
+   */
+  #ground-wrap {
+    position:absolute; left:-70%; right:-70%; bottom:0;
+    height:44%;                      /* top edge sits on the horizon */
+    perspective:420px; perspective-origin:50% 0%;
+    overflow:hidden;
+  }
+  /*
+   * The plane is anchored at its TOP edge -- the horizon -- and tipped toward
+   * the viewer. Two things have to hold or it collapses:
+   *   - transform-origin at 50% 0%, so it hinges at the horizon
+   *   - its depth must stay inside the perspective distance, or most of the
+   *     plane ends up behind the camera and it foreshortens to a sliver
+   */
+  #ground {
+    position:absolute; inset:0 0 auto 0; height:380px;
+    transform-origin:50% 0%;
+    transform:rotateX(72deg);
+    background-image:url("assets/scene/ground-trail.png");
+    background-repeat:repeat;
+    background-size:38% auto;
+    will-change:background-position;
+    /* Lifted to sit under the same canopy light as the backdrop -- the raw
+       texture reads as a different, darker scene. */
+    filter:brightness(1.5) saturate(.85) contrast(.92);
+  }
+  /* Fade the plane into the distance so it meets the backdrop rather than
+     ending at a hard line. */
+  /* Blend the far end of the plane into the backdrop. No fully opaque stop --
+     that draws a hard bar across the frame instead of a horizon. */
+  #ground-fade {
+    position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(to bottom,
+      rgba(150,155,132,.98) 0%, rgba(140,146,124,.9) 5%, rgba(120,128,105,.62) 14%,
+      rgba(100,110,88,.3) 28%, transparent 52%);
+  }
+
+  #corridor { position:absolute; inset:0; }
+  .scatter { position:absolute; display:block; will-change:transform,width,top,left; }
+
+  #dog { position:absolute; will-change:transform,width,top,left; }
+  /* All sprites are absolutely positioned, so none of them drives the box's
+     height. The container's size is set explicitly from the projection --
+     otherwise whichever image happens to be in flow decides the layout, and
+     every position computed against the intended size is wrong. */
+  #dog img { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  /* The shadow belongs to the TRAIL, not to her sprite. Parenting it to the
+     dog meant its position depended on the sprite canvas's padding and on the
+     current frame's footing, and it drifted off her feet. Positioned in scene
+     coordinates it simply sits on the ground line, and an airborne frame lifts
+     her off it -- which is what should happen. */
+  #shadow { position:absolute; width:80px; height:22px;
+            transform:translate(-50%,-50%);
+            background:radial-gradient(ellipse at center, rgba(20,16,10,.55) 0%, rgba(20,16,10,.24) 48%, transparent 72%);
+            filter:blur(2px); pointer-events:none; }
+
+  label { display:block; margin:9px 0 1px; font-size:11px; letter-spacing:.05em;
+          text-transform:uppercase; opacity:.7; }
+  input[type=range]{ width:100%; }
+  .val { float:right; opacity:.6; }
+  button { font:inherit; font-size:12px; padding:6px 9px; margin:2px 2px 0 0;
+           border:1px solid currentColor; background:transparent; color:inherit;
+           border-radius:3px; cursor:pointer; }
+  button.on { background:var(--deep-forest-green); color:var(--paper); }
+  h1 { font-size:14px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 3px; }
+  p.note { font-size:11px; opacity:.65; margin:3px 0 12px; }
+  #readout { margin-top:12px; font-size:11px; opacity:.75; white-space:pre; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="viewport">
+    <div id="backdrop"></div>
+    <div id="ground-wrap"><div id="ground"></div><div id="ground-fade"></div></div>
+    <div id="corridor"></div>
+    <div id="shadow"></div>
+    <div id="dog"><img id="dog-img" alt=""></div>
+  </div>
+  <div>
+    <h1>Staging Bench</h1>
+    <p class="note">PRD §15A. Real travel down a trail: scenery is placed in a
+      virtual corridor and swept past, not scaled. Nothing repeats on a fixed
+      period, so this can run indefinitely.</p>
+
+    <label>behaviour</label>
+    <div id="gaits"></div>
+
+    <label>her orientation (manual)</label>
+    <div id="orients"></div>
+
+    <label>walking pace <span class="val" id="v-speed">2.6 m/s</span></label>
+    <input type="range" id="speed" min="0" max="700" value="260">
+    <label>how far ahead she is <span class="val" id="v-z">2.4 m</span></label>
+    <input type="range" id="z" min="12" max="90" value="24">
+    <label>camera yaw <span class="val" id="v-yaw">0</span></label>
+    <input type="range" id="yaw" min="-100" max="100" value="0">
+    <label>scenery density <span class="val" id="v-count">46</span></label>
+    <input type="range" id="count" min="6" max="90" value="46">
+
+    <div style="margin-top:12px">
+      <button id="backdrop-btn" class="on">backdrop</button>
+      <button id="scenery-btn" class="on">scenery</button>
+    </div>
+    <div id="readout"></div>
+  </div>
+</div>
+
+<script type="module">
+import { Corridor, project, depthLayer, MOLLY_WIDTH, MOLLY_CANVAS_W, CORRIDOR } from "./js/ui/corridor.js?v=18";
+import { makeRng } from "./js/rng.js";
+
+const viewport = document.getElementById("viewport");
+const corridorEl = document.getElementById("corridor");
+const dogEl = document.getElementById("dog");
+const img = document.getElementById("dog-img");
+const groundEl = document.getElementById("ground");
+const shadowEl = document.getElementById("shadow");
+
+document.getElementById("backdrop").style.backgroundImage = 'url("assets/scene/cedar-far.png")';
+
+const rng = makeRng(20260826);
+let corridor = new Corridor(corridorEl, { count: 46, rand: rng.float });
+
+const ORIENTS = {
+  away: "assets/molly/molly-away.png",
+  glance: "assets/molly/molly-glance.png",
+  turning: "assets/molly/molly-turning.png",
+  facing: "assets/molly/molly-facing.png",
+  side: "assets/molly/molly-body-walk.png",
+  sit: "assets/molly/molly-body-sit.png",
+};
+const orientsEl = document.getElementById("orients");
+for (const [name, src] of Object.entries(ORIENTS)) {
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.onclick = () => { img.src = src; [...orientsEl.children].forEach(c => c.classList.toggle("on", c === b)); };
+  orientsEl.appendChild(b);
+}
+img.src = ORIENTS.away;
+orientsEl.firstChild.classList.add("on");
+
+/*
+ * Every sprite she can show, from two normalised sets.
+ *
+ * Gaits were registered on the spine (feet move, body steady) and transitions
+ * on the feet (feet planted, body drops). Two registrations cannot be mixed
+ * blindly -- so each clip carries its own `ground`, the canvas fraction that
+ * sits on the trail, and placement uses that. A gait's ground is its most
+ * planted frame; a transition's is the fixed line every frame was pinned to.
+ */
+const gaitMan = await (await fetch("assets/molly/cycles/gaits/sprites.json")).json();
+const transMan = await (await fetch("assets/molly/transitions/sprites.json")).json();
+
+function loadClip(man, dir, prefix) {
+  const keys = Object.keys(man.sprites)
+    .filter(k => k === prefix || k.startsWith(prefix + "-"))
+    .sort((x, y) => (+(x.split("-")[1] || 0)) - (+(y.split("-")[1] || 0)));
+  const imgs = keys.map(k => {
+    const im = document.createElement("img");
+    im.src = `${dir}/${man.sprites[k].file}`;
+    Object.assign(im.style, { position: "absolute", inset: "0", width: "100%", display: "none" });
+    document.getElementById("dog").appendChild(im);
+    return im;
+  });
+  return { imgs, ground: Math.max(...keys.map(k => man.sprites[k].feet)) };
+}
+
+const CYCLES = "assets/molly/cycles/gaits";
+const TRANS = "assets/molly/transitions";
+
+const GAITS = {
+  walk:   { stride: 0.62, pace: 1.1, ...loadClip(gaitMan, CYCLES, "walk") },
+  trot:   { stride: 1.05, pace: 2.6, ...loadClip(gaitMan, CYCLES, "trot") },
+  gallop: { stride: 2.30, pace: 6.0, ...loadClip(gaitMan, CYCLES, "gallop") },
+};
+const STAND = loadClip(transMan, TRANS, "stand");
+const BEHAVIOURS = {
+  sit:     { fps: 9,  hold: [1.4, 3.2], ...loadClip(transMan, TRANS, "sit") },
+  lie:     { fps: 9,  hold: [2.5, 5.0], ...loadClip(transMan, TRANS, "lie") },
+  turn90:  { fps: 10, hold: [0.9, 2.2], ...loadClip(transMan, TRANS, "turn90") },
+  turn180: { fps: 10, hold: [1.2, 2.8], ...loadClip(transMan, TRANS, "turn180") },
+  glance:  { fps: 8,  hold: [0.8, 2.0], ...loadClip(transMan, TRANS, "glance") },
+};
+
+const allImgs = [
+  ...STAND.imgs,
+  ...Object.values(GAITS).flatMap(g => g.imgs),
+  ...Object.values(BEHAVIOURS).flatMap(b => b.imgs),
+];
+function showOnly(img) {
+  for (const im of allImgs) im.style.display = im === img ? "block" : "none";
+}
+
+/*
+ * The director.
+ *
+ * She stands, walks on, sometimes breaks into a trot or a gallop, stops, does
+ * something, and settles back to standing. Nothing here is a fixed loop -- each
+ * phase picks its own successor and duration, so the sequence never repeats.
+ *
+ * Every behaviour is played forwards and then backwards to return her to
+ * standing, which is why only the outbound half of each transition had to be
+ * drawn.
+ */
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+let auto = true;
+let dir = { phase: "stand", until: 0, clip: null, key: null, frame: 0, back: false, acc: 0 };
+
+function beginStand(now, short, intent) {
+  dir = { phase: "stand", until: now + (short ? rand(0.6, 1.6) : rand(1.2, 3.0)),
+          clip: STAND, key: "stand", frame: 0, back: false, acc: 0, intent };
+  showOnly(STAND.imgs[0]);
+}
+
+function beginGait(now, key) {
+  dir = { phase: "gait", until: now + rand(3.5, 9), clip: GAITS[key], key, frame: 0, back: false, acc: 0 };
+}
+
+function beginBehaviour(now, key) {
+  dir = { phase: "clip", until: 0, clip: BEHAVIOURS[key], key, frame: 0, back: false, acc: 0 };
+  showOnly(dir.clip.imgs[0]);
+}
+
+/*
+ * What happens after this phase.
+ *
+ * Chaining independent coin-flips gave long runs of the same kind of thing --
+ * she stood and did five behaviours in a row without ever moving off, because
+ * nothing remembered what she had just done. Carrying an explicit intent
+ * through the standing beat produces the intended rhythm: move, stop, do
+ * something, move off again, with enough variation that it never repeats.
+ */
+function nextPhase(now) {
+  if (dir.phase === "gait") {
+    // Occasionally change pace without stopping -- breaking into a run.
+    if (Math.random() < 0.3) {
+      const others = Object.keys(GAITS).filter(k => k !== dir.key);
+      return beginGait(now, pick(others));
+    }
+    return beginStand(now, true, "behave");
+  }
+
+  if (dir.phase === "clip") return beginStand(now, true, "move");
+
+  // Standing: follow the intent we arrived with, or pick fresh.
+  const intent = dir.intent || (Math.random() < 0.6 ? "move" : "behave");
+  return intent === "move"
+    ? beginGait(now, pick(["walk", "walk", "walk", "trot", "trot", "gallop"]))
+    : beginBehaviour(now, pick(Object.keys(BEHAVIOURS)));
+}
+
+function updateDirector(now, dt) {
+  if (!auto) return;
+
+  if (dir.phase === "clip") {
+    // Play forward, hold on the last frame, then play back to standing.
+    const c = dir.clip;
+    dir.acc += dt;
+    if (dir.until) {                                  // holding
+      if (now >= dir.until) { dir.until = 0; dir.back = true; dir.acc = 0; }
+    } else if (dir.acc >= 1 / c.fps) {
+      dir.acc = 0;
+      dir.frame += dir.back ? -1 : 1;
+      if (dir.frame >= c.imgs.length - 1) {
+        dir.frame = c.imgs.length - 1;
+        dir.until = now + rand(...c.hold);
+      } else if (dir.frame <= 0) {
+        return nextPhase(now);
+      }
+    }
+    showOnly(c.imgs[dir.frame]);
+    return;
+  }
+
+  if (now >= dir.until) nextPhase(now);
+}
+
+// Controls: auto on by default, with manual overrides for inspection.
+const gaitsEl = document.getElementById("gaits");
+const autoBtn = document.createElement("button");
+autoBtn.textContent = "auto";
+autoBtn.className = "on";
+autoBtn.onclick = () => {
+  auto = !auto;
+  autoBtn.classList.toggle("on", auto);
+  if (auto) beginStand(t, true);
+};
+gaitsEl.appendChild(autoBtn);
+
+for (const key of [...Object.keys(GAITS), ...Object.keys(BEHAVIOURS)]) {
+  const b = document.createElement("button");
+  b.textContent = key;
+  b.onclick = () => {
+    auto = true;                       // hand back to the director afterwards
+    autoBtn.classList.add("on");
+    if (GAITS[key]) beginGait(t, key); else beginBehaviour(t, key);
+  };
+  gaitsEl.appendChild(b);
+}
+
+/** Target pace for the current phase; the loop eases toward it. */
+function targetPace() {
+  if (!auto) return manualPace;
+  return dir.phase === "gait" ? dir.clip.pace : 0;
+}
+
+let speed = 0, manualPace = 2.6, herZ = 2.4, yaw = 0, travelled = 0, t = 0;
+const bind = (id, fn, fmt) => {
+  const el = document.getElementById(id);
+  el.oninput = () => { fn(+el.value); document.getElementById("v-" + id).textContent = fmt(+el.value); };
+};
+bind("speed", v => { manualPace = v / 100; auto = false; autoBtn.classList.remove("on"); },
+     v => (v / 100).toFixed(1) + " m/s");
+bind("z", v => herZ = v / 10, v => (v / 10).toFixed(1) + " m");
+bind("yaw", v => yaw = v / 100, v => v);
+bind("count", v => {
+  corridorEl.innerHTML = "";
+  corridor = new Corridor(corridorEl, { count: v, rand: makeRng(20260826).float });
+}, v => v);
+
+document.getElementById("backdrop-btn").onclick = (e) => {
+  const on = e.target.classList.toggle("on");
+  document.getElementById("backdrop").style.display = on ? "" : "none";
+};
+document.getElementById("scenery-btn").onclick = (e) => {
+  const on = e.target.classList.toggle("on");
+  corridorEl.style.display = on ? "" : "none";
+};
+
+const readout = document.getElementById("readout");
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, .05); last = now;
+  t += dt;
+
+  updateDirector(t, dt);
+  // Ease toward the phase's pace -- she does not start and stop like a machine.
+  speed += (targetPace() - speed) * (1 - Math.pow(0.08, dt));
+  travelled += speed * dt;
+
+  corridor.update(dt, speed, yaw);
+
+  /*
+   * A gait's frame comes from DISTANCE TRAVELLED, so her feet stay planted at
+   * any pace -- including while she is easing in and out of a stop. The
+   * director owns every other frame.
+   *
+   * Named `cycleFrame`, not `frame`: the animation loop itself is `frame`, and
+   * shadowing it hands requestAnimationFrame a number instead of a function.
+   */
+  if (dir.phase === "gait") {
+    const g = dir.clip;
+    const cycleFrame = Math.floor((travelled / g.stride) * g.imgs.length) % g.imgs.length;
+    showOnly(g.imgs[cycleFrame]);
+  }
+  img.style.display = "none";          // the flat sprite is only for manual poses
+
+  // Molly uses the same projection as the scenery, so she can never disagree
+  // with it. Her gait rides on top: a two-beat bob, a weight shift, and a slow
+  // drift in and out of following distance.
+  const walking = speed > 0.05;
+  const bob = walking ? Math.abs(Math.sin(t * 5.2)) : 0;
+  const weight = walking ? Math.sin(t * 2.6) : 0;
+  const drift = walking ? Math.sin(t * 0.33) * 0.28 : 0;
+  const z = Math.max(1.2, herZ + drift);
+
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+
+  /*
+   * Size by the CANVAS HEIGHT, not by her width.
+   *
+   * Normalised poses share one canvas whose height is a known number of metres,
+   * so that is the dimension to project. Projecting her width instead assumes
+   * a real-world width per pose -- which is how the side view once rendered at
+   * half scale, and how these gait frames came out far too small.
+   *
+   * Then seat the canvas's own ground line on the trail. The canvas bottom is
+   * empty space below her paws; putting *that* on the ground leaves her
+   * hovering above her shadow by the height of the gap.
+   */
+  const useNorm = true;
+  const groundFeet = (dir.clip || STAND).ground;
+  const p = project(z, useNorm ? MOLLY_CANVAS_W : MOLLY_WIDTH, vw, vh);
+  const dwPx = p.width;
+  const dh = useNorm ? dwPx * (600 / 380)
+                     : dwPx * (img.naturalHeight / (img.naturalWidth || 1));
+
+  dogEl.style.width = dwPx.toFixed(1) + "px";
+  dogEl.style.height = dh.toFixed(1) + "px";
+  dogEl.style.left = (vw / 2 + (weight * 0.06 - yaw * 2.6) * vw * 0.62 / z - dwPx / 2).toFixed(1) + "px";
+  dogEl.style.top = (p.groundY - dh * groundFeet - bob * dh * 0.02).toFixed(1) + "px";
+  dogEl.style.zIndex = String(depthLayer(z));
+
+  // Shadow: on the trail, directly under her, scaled with distance.
+  const shadowW = dwPx * 0.55;
+  shadowEl.style.width = `${shadowW.toFixed(1)}px`;
+  shadowEl.style.height = `${(shadowW * 0.28).toFixed(1)}px`;
+  shadowEl.style.left = `${(vw / 2 + (weight * 0.06 - yaw * 2.6) * vw * 0.62 / z).toFixed(1)}px`;
+  shadowEl.style.top = `${p.groundY.toFixed(1)}px`;
+  shadowEl.style.zIndex = String(depthLayer(z) - 1);
+
+  // Scroll the ground. The plane is in perspective, so a constant scroll rate
+  // reads as constant ground speed under the camera.
+  groundEl.style.backgroundPositionY = `${(travelled * 34).toFixed(1)}px`;
+  groundEl.style.backgroundPositionX = `${(-yaw * 120).toFixed(1)}px`;
+
+  // Backdrop only yaws -- it never dollies.
+  document.getElementById("backdrop").style.transform = `translateX(${(-yaw * 5).toFixed(2)}%)`;
+
+  readout.textContent =
+    `travelled  ${travelled.toFixed(1)} m\n` +
+    `her z      ${z.toFixed(2)} m -> ${p.width.toFixed(0)}px, feet ${(100*p.groundY/vh).toFixed(0)}%\n` +
+    `scenery    ${corridor.items.length} items, ${CORRIDOR.NEAR}–${CORRIDOR.FAR} m`;
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

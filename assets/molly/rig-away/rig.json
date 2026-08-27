@@ -1,0 +1,75 @@
+{
+  "source": "molly-away.png",
+  "width": 266,
+  "height": 739,
+  "parts": {
+    "tail": {
+      "file": "tail.png",
+      "offset": [
+        0,
+        68
+      ],
+      "size": [
+        83,
+        183
+      ],
+      "pivot": [
+        88,
+        150
+      ],
+      "pivotInSprite": [
+        88,
+        218
+      ]
+    },
+    "leg_l": {
+      "file": "leg_l.png",
+      "offset": [
+        62,
+        508
+      ],
+      "size": [
+        129,
+        231
+      ],
+      "pivot": [
+        70,
+        14
+      ],
+      "pivotInSprite": [
+        132,
+        522
+      ]
+    },
+    "leg_r": {
+      "file": "leg_r.png",
+      "offset": [
+        182,
+        508
+      ],
+      "size": [
+        56,
+        103
+      ],
+      "pivot": [
+        24,
+        14
+      ],
+      "pivotInSprite": [
+        206,
+        522
+      ]
+    },
+    "body": {
+      "file": "body.png",
+      "offset": [
+        0,
+        0
+      ],
+      "size": [
+        266,
+        739
+      ]
+    }
+  }
+}

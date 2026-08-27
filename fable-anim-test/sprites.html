@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Molly Dash — sprite sheet</title>
+<style>body{background:#7ab93f;margin:0;padding:16px;font:12px monospace;color:#1e2d14}
+canvas{image-rendering:pixelated;display:block;max-width:100%;background:#8ac04a;margin:8px 0}</style></head>
+<body>
+<canvas id="c"></canvas>
+<script src="js/pix.js"></script><script src="js/font.js"></script>
+<script src="js/art.js"></script><script src="js/world.js"></script><script src="js/dog.js"></script>
+<script>
+var art = TD.buildArt();
+var K = 10, CW = 54, CH = 60, N = 4;
+var c = document.getElementById('c');
+c.width = CW * N * K; c.height = CH * 2 * K;
+var ctx = c.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+var off = document.createElement('canvas');
+off.width = CW * N; off.height = CH * 2;
+var o = off.getContext('2d'); o.imageSmoothingEnabled = false;
+var fake = { px:function(){return 0;}, py:function(){return 0;}, F:160, W:CW, H:CH };
+for (var row = 0; row < 2; row++) {
+  for (var i = 0; i < N; i++) {
+    (function (row, i) {
+      var st = { time: i * 0.21, gait: i / N, lean: row ? (i / (N - 1)) * 2 - 1 : 0,
+                 runBlend: 1, stumble: 0, camX: 0, dogX: 0 };
+      var r = { px: function () { return CW * i + CW / 2; },
+                py: function () { return CH * row + CH - 8; },
+                F: 160, W: off.width, H: off.height, ctx: o };
+      TD.drawDog(o, art.dog, st, r, 0);
+    })(row, i);
+  }
+}
+ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, c.width, c.height);
+</script>
+</body></html>

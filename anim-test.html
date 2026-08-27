@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Molly Mae — Animation Bench</title>
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  body { margin:0; background:var(--paper); color:var(--deep-forest-green);
+         font:13px/1.5 ui-monospace,Menlo,monospace; padding:18px; }
+  h1 { font-size:14px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 3px; }
+  p.note { font-size:11px; opacity:.65; max-width:70ch; margin:3px 0 16px; }
+  h2 { font-size:11px; letter-spacing:.14em; text-transform:uppercase; opacity:.6;
+       margin:22px 0 8px; border-bottom:1px solid var(--stone-gray); padding-bottom:4px; }
+
+  /* Registration check: every canvas is identical, so a shared grid reveals any
+     drift in scale or footing immediately. */
+  .strip { display:flex; gap:4px; flex-wrap:wrap; }
+  .cell { position:relative; background:var(--mist-light);
+          background-image:
+            repeating-linear-gradient(to bottom, rgba(0,0,0,.13) 0 1px, transparent 1px 20px);
+          border:1px solid var(--stone-gray); }
+  .cell img { display:block; width:180px; }
+  .cell b { position:absolute; left:3px; bottom:2px; font-size:9px; opacity:.65; font-weight:400; }
+  .cell::after { content:""; position:absolute; left:0; right:0; bottom:var(--feet,8%);
+                 border-top:1px dashed rgba(180,40,40,.75); }
+
+  /* Overlay: all frames stacked, to see the body stay put while legs move. */
+  #overlay { position:relative; width:220px; height:287px; background:var(--mist-light);
+             border:1px solid var(--stone-gray); }
+  #overlay img { position:absolute; inset:0; width:100%; opacity:.34; }
+
+  #player { position:relative; width:260px; height:340px; background:var(--mist-light);
+            border:1px solid var(--stone-gray); }
+  #player img { position:absolute; inset:0; width:100%; display:none; }
+  #player img.on { display:block; }
+
+  label { display:inline-block; margin:10px 12px 0 0; font-size:11px;
+          letter-spacing:.05em; text-transform:uppercase; opacity:.7; }
+  input[type=range]{ width:200px; vertical-align:middle; }
+</style>
+</head>
+<body>
+<h1>Animation Bench</h1>
+<p class="note">Every sprite is normalised onto one canvas at one body scale
+  (tools/normalize.py). The grid lines are shared, so any drift in size or
+  footing shows up as frames that disagree. The dashed red line is each frame's
+  measured ground.</p>
+
+<h2>Standing, and the transitions out of it</h2>
+<p class="note">Standing is the anchor pose every transition begins from. Each
+  clip plays once and holds on its final frame; <b>replay</b> runs it again,
+  <b>reverse</b> plays it backwards — which is how the return trip
+  (sitting&nbsp;→&nbsp;standing) comes free. All frames are registered on the
+  ground line, not the spine: her feet stay planted while the body drops.</p>
+<div class="strip" id="transitions"></div>
+
+<h2>Gaits — walk, trot, gallop</h2>
+<p class="note">All three generated from one three-row sheet
+  (<code>art/prompts/gaits-away.txt</code>), cut with
+  <code>tools/gridcut.py</code>. Each plays at a speed appropriate to its gait.
+  The faint version behind each is every frame of that cycle overlaid — a sharp
+  body with only the legs blurred means a usable cycle.</p>
+<div class="strip" id="gaits"></div>
+<label>speed <span id="v-gspeed">1.0</span>×</label>
+<input type="range" id="gspeed" min="20" max="250" value="100">
+
+<h2>Registration — all poses</h2>
+<div class="strip" id="strip"></div>
+
+<h2>Run cycle overlaid</h2>
+<div id="overlay"></div>
+
+<h2>Rigged run — one drawing, transforms only</h2>
+<p class="note">The same standing rear view cut into body, tail and two hind
+  legs. Every inbetween is a transform, so the body cannot drift — and
+  smoothness is free once the rig exists. Compare with the generated cycle
+  below.</p>
+<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+  <div id="rigged" style="width:230px"></div>
+  <div>
+    <label>stride <span id="v-rate">1.0</span>×</label>
+    <input type="range" id="rate" min="20" max="260" value="100"><br>
+    <label>show parts</label>
+    <input type="checkbox" id="outline">
+  </div>
+</div>
+
+<h2>Generated cycle — overlaid and playing</h2>
+<p class="note">Generated from a single holistic prompt: the animation described once, with an explicit list of what must NOT change between frames. Compare the overlay with the earlier per-frame attempt — a tight body means a usable cycle.</p>
+<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap"><div id="ov2" style="position:relative;width:200px;height:316px;background:var(--mist-light);border:1px solid var(--stone-gray)"></div><div id="playwrap"></div></div>
+<div id="player"></div>
+<label>fps <span id="v-fps">10</span></label>
+<input type="range" id="fps" min="2" max="24" value="10">
+
+<script type="module">
+// --- standing + transitions ----------------------------------------------
+const trMan = await (await fetch("assets/molly/transitions/sprites.json")).json();
+const CLIPS = [
+  { key: "stand",   label: "standing (anchor)", fps: 1 },
+  { key: "sit",     label: "→ sitting",         fps: 9 },
+  { key: "lie",     label: "→ lying down",      fps: 9 },
+  { key: "turn90",  label: "→ turned 90°",      fps: 10 },
+  { key: "turn180", label: "→ turned 180°",     fps: 10 },
+  { key: "glance",  label: "→ looking back",    fps: 8 },
+];
+const trEl = document.getElementById("transitions");
+
+for (const clip of CLIPS) {
+  const frames = Object.keys(trMan.sprites)
+    .filter(k => k === clip.key || k.startsWith(clip.key + "-"))
+    .sort((a, b) => (+(a.split("-")[1] || 0)) - (+(b.split("-")[1] || 0)));
+
+  const cell = document.createElement("figure");
+  cell.className = "cell";
+  cell.style.cssText = "margin:0;width:180px";
+  const stage = document.createElement("div");
+  stage.style.cssText = "position:relative;width:180px;aspect-ratio:380/600";
+  cell.appendChild(stage);
+
+  const imgs = frames.map((f, i) => {
+    const im = document.createElement("img");
+    im.src = `assets/molly/transitions/${trMan.sprites[f].file}`;
+    im.style.cssText = `position:absolute;inset:0;width:100%;display:${i ? "none" : "block"}`;
+    stage.appendChild(im);
+    return im;
+  });
+
+  const cap = document.createElement("b");
+  cap.textContent = `${clip.label} · ${frames.length}f`;
+  // The shared .cell rule pins captions to the bottom-left; these cells have
+  // controls under them, so the caption sits in normal flow instead.
+  cap.style.cssText = "position:static;display:block;font-size:10px;letter-spacing:.08em;" +
+                      "text-transform:uppercase;opacity:.7;font-weight:400;margin-top:5px";
+  cell.appendChild(cap);
+
+  const controls = document.createElement("div");
+  controls.style.cssText = "margin-top:4px;display:flex;gap:4px";
+  cell.appendChild(controls);
+
+  // A transition plays once and holds its last frame -- unlike a cycle, it has
+  // a destination. Reversing it gives the return trip with no extra art.
+  let timer = null;
+  const play = (backwards) => {
+    clearInterval(timer);
+    const order = backwards ? [...imgs].reverse() : imgs;
+    let i = 0;
+    imgs.forEach(im => { im.style.display = "none"; });
+    order[0].style.display = "block";
+    timer = setInterval(() => {
+      order[i].style.display = "none";
+      i++;
+      if (i >= order.length) { clearInterval(timer); i = order.length - 1; }
+      order[i].style.display = "block";
+    }, 1000 / clip.fps);
+  };
+
+  if (frames.length > 1) {
+    for (const [text, back] of [["replay", false], ["reverse", true]]) {
+      const b = document.createElement("button");
+      b.textContent = text;
+      b.style.cssText = "font-size:10px;padding:3px 6px";
+      b.onclick = () => play(back);
+      controls.appendChild(b);
+    }
+    play(false);
+    setInterval(() => play(false), 3200);
+  }
+  trEl.appendChild(cell);
+}
+
+// --- the three gaits ------------------------------------------------------
+const gaitMan = await (await fetch("assets/molly/cycles/gaits/sprites.json")).json();
+const GAITS = [
+  { name: "walk",   fps: 6,  label: "slow walk · 4 frames" },
+  { name: "trot",   fps: 9,  label: "steady trot · 4 frames" },
+  { name: "gallop", fps: 14, label: "fast gallop · 6 frames" },
+];
+const gaitsEl = document.getElementById("gaits");
+let gSpeed = 1;
+document.getElementById("gspeed").oninput = (e) => {
+  gSpeed = +e.target.value / 100;
+  document.getElementById("v-gspeed").textContent = gSpeed.toFixed(1);
+};
+
+const players = [];
+for (const g of GAITS) {
+  const frames = Object.keys(gaitMan.sprites)
+    .filter(k => k.startsWith(g.name + "-"))
+    .sort((a, b) => +a.split("-")[1] - +b.split("-")[1]);
+
+  const cell = document.createElement("figure");
+  cell.className = "cell";
+  cell.style.margin = "0";
+  cell.style.width = "230px";
+  cell.innerHTML = `<b>${g.label}</b>`;
+  const stage = document.createElement("div");
+  stage.style.cssText = "position:relative;width:230px;aspect-ratio:380/600";
+  cell.prepend(stage);
+
+  // Overlay of every frame, faint, sitting behind the playing sprite.
+  for (const f of frames) {
+    const im = document.createElement("img");
+    im.src = `assets/molly/cycles/gaits/${gaitMan.sprites[f].file}`;
+    im.style.cssText = "position:absolute;inset:0;width:100%;opacity:.16";
+    stage.appendChild(im);
+  }
+  const imgs = frames.map(f => {
+    const im = document.createElement("img");
+    im.src = `assets/molly/cycles/gaits/${gaitMan.sprites[f].file}`;
+    im.style.cssText = "position:absolute;inset:0;width:100%;display:none";
+    stage.appendChild(im);
+    return im;
+  });
+  imgs[0].style.display = "block";
+  players.push({ imgs, fps: g.fps, i: 0, acc: 0 });
+  gaitsEl.appendChild(cell);
+}
+
+let gLast = performance.now();
+function gaitFrame(now) {
+  const dt = (now - gLast) / 1000; gLast = now;
+  for (const p of players) {
+    p.acc += dt;
+    const step = 1 / (p.fps * gSpeed);
+    if (p.acc >= step) {
+      p.acc = 0;
+      p.imgs[p.i].style.display = "none";
+      p.i = (p.i + 1) % p.imgs.length;
+      p.imgs[p.i].style.display = "block";
+    }
+  }
+  requestAnimationFrame(gaitFrame);
+}
+requestAnimationFrame(gaitFrame);
+
+import { loadPartsRig, runPose } from "./js/ui/partsrig.js";
+
+// --- rigged run -----------------------------------------------------------
+const rig = await loadPartsRig(document.getElementById("rigged"),
+                               "assets/molly/rig-away",
+                               ["body", "leg_r", "leg_l", "tail"]);
+let rate = 1;
+document.getElementById("rate").oninput = (e) => {
+  rate = +e.target.value / 100;
+  document.getElementById("v-rate").textContent = rate.toFixed(1);
+};
+document.getElementById("outline").onchange = (e) => {
+  for (const p of document.querySelectorAll("#rigged .rig-part")) {
+    p.style.outline = e.target.checked ? "1px solid rgba(200,40,40,.6)" : "";
+  }
+};
+let rigT = 0, rigLast = performance.now();
+function rigFrame(now) {
+  const dt = Math.min((now - rigLast) / 1000, 0.05); rigLast = now;
+  rigT += dt;
+  runPose(rig, rigT, rate);
+  requestAnimationFrame(rigFrame);
+}
+requestAnimationFrame(rigFrame);
+
+// --- registration + generated cycle ---------------------------------------
+const man = await (await fetch("assets/molly/norm/sprites.json")).json();
+const names = Object.keys(man.sprites);
+const runNames = names.filter(n => n.startsWith("run-")).sort();
+
+const strip = document.getElementById("strip");
+for (const n of names) {
+  const s = man.sprites[n];
+  const cell = document.createElement("figure");
+  cell.className = "cell";
+  cell.style.margin = "0";
+  cell.style.setProperty("--feet", `${(1 - s.feet) * 100}%`);
+  cell.innerHTML = `<img src="assets/molly/norm/${s.file}" alt=""><b>${n} · ${s.feet.toFixed(2)}</b>`;
+  strip.appendChild(cell);
+}
+
+const overlay = document.getElementById("ov2");
+for (const n of runNames) {
+  const img = document.createElement("img");
+  img.src = `assets/molly/norm/${man.sprites[n].file}`;
+  Object.assign(img.style, {position:"absolute", inset:"0", width:"100%", opacity:".34"});
+  overlay.appendChild(img);
+}
+
+const player = document.getElementById("player");
+document.getElementById("playwrap").appendChild(player);
+const frames = runNames.map(n => {
+  const img = document.createElement("img");
+  img.src = `assets/molly/norm/${man.sprites[n].file}`;
+  player.appendChild(img);
+  return img;
+});
+let fps = 10, i = 0, acc = 0, last = performance.now();
+document.getElementById("fps").oninput = (e) => {
+  fps = +e.target.value; document.getElementById("v-fps").textContent = fps;
+};
+function frame(now) {
+  const dt = (now - last) / 1000; last = now;
+  acc += dt;
+  if (acc >= 1 / fps) {
+    acc = 0;
+    frames[i].classList.remove("on");
+    i = (i + 1) % frames.length;
+    frames[i].classList.add("on");
+  }
+  requestAnimationFrame(frame);
+}
+frames[0].classList.add("on");
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

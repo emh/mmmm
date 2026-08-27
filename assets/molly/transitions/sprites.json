@@ -1,0 +1,144 @@
+{
+  "canvas": [
+    380,
+    600
+  ],
+  "backFrac": 0.125,
+  "sprites": {
+    "stand": {
+      "file": "stand.png",
+      "scale": 0.3053,
+      "feet": 0.8
+    },
+    "sit-1": {
+      "file": "sit-1.png",
+      "scale": 0.5769,
+      "feet": 0.8
+    },
+    "sit-2": {
+      "file": "sit-2.png",
+      "scale": 0.5769,
+      "feet": 0.8
+    },
+    "sit-3": {
+      "file": "sit-3.png",
+      "scale": 0.5769,
+      "feet": 0.8
+    },
+    "sit-4": {
+      "file": "sit-4.png",
+      "scale": 0.5769,
+      "feet": 0.8
+    },
+    "sit-5": {
+      "file": "sit-5.png",
+      "scale": 0.5769,
+      "feet": 0.8
+    },
+    "lie-1": {
+      "file": "lie-1.png",
+      "scale": 0.7018,
+      "feet": 0.8
+    },
+    "lie-2": {
+      "file": "lie-2.png",
+      "scale": 0.7018,
+      "feet": 0.8
+    },
+    "lie-3": {
+      "file": "lie-3.png",
+      "scale": 0.7018,
+      "feet": 0.8
+    },
+    "lie-4": {
+      "file": "lie-4.png",
+      "scale": 0.7018,
+      "feet": 0.8
+    },
+    "lie-5": {
+      "file": "lie-5.png",
+      "scale": 0.7018,
+      "feet": 0.8
+    },
+    "lie-6": {
+      "file": "lie-6.png",
+      "scale": 0.7018,
+      "feet": 0.8
+    },
+    "turn90-1": {
+      "file": "turn90-1.png",
+      "scale": 0.6283,
+      "feet": 0.8
+    },
+    "turn90-2": {
+      "file": "turn90-2.png",
+      "scale": 0.6283,
+      "feet": 0.8
+    },
+    "turn90-3": {
+      "file": "turn90-3.png",
+      "scale": 0.6283,
+      "feet": 0.8
+    },
+    "turn90-4": {
+      "file": "turn90-4.png",
+      "scale": 0.6283,
+      "feet": 0.8
+    },
+    "turn90-5": {
+      "file": "turn90-5.png",
+      "scale": 0.6283,
+      "feet": 0.8
+    },
+    "turn180-1": {
+      "file": "turn180-1.png",
+      "scale": 0.6667,
+      "feet": 0.8
+    },
+    "turn180-2": {
+      "file": "turn180-2.png",
+      "scale": 0.6667,
+      "feet": 0.8
+    },
+    "turn180-3": {
+      "file": "turn180-3.png",
+      "scale": 0.6667,
+      "feet": 0.8
+    },
+    "turn180-4": {
+      "file": "turn180-4.png",
+      "scale": 0.6667,
+      "feet": 0.8
+    },
+    "turn180-5": {
+      "file": "turn180-5.png",
+      "scale": 0.6667,
+      "feet": 0.8
+    },
+    "turn180-6": {
+      "file": "turn180-6.png",
+      "scale": 0.6667,
+      "feet": 0.8
+    },
+    "glance-1": {
+      "file": "glance-1.png",
+      "scale": 0.5333,
+      "feet": 0.8
+    },
+    "glance-2": {
+      "file": "glance-2.png",
+      "scale": 0.5333,
+      "feet": 0.8
+    },
+    "glance-3": {
+      "file": "glance-3.png",
+      "scale": 0.5333,
+      "feet": 0.8
+    },
+    "glance-4": {
+      "file": "glance-4.png",
+      "scale": 0.5333,
+      "feet": 0.8
+    }
+  }
+}

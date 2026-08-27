@@ -860,6 +860,120 @@ over:
 
 ---
 
+## 15A. Camera and Staging
+
+*Added 2026-08-26. This section supersedes any earlier implication that the game
+is staged side-on, and it is the single most important constraint on character
+and environment art.*
+
+### 15A.1 Where the player is
+
+The player is **on the trail, a few paces behind Molly Mae**, at roughly adult
+eye height, looking down the trail ahead. Portrait orientation, held in one hand.
+
+This is not a neutral framing choice. It makes the player a *presence in the
+park* rather than an observer of a diorama, and it gives the core verbs their
+literal meaning:
+
+- **Follow** means the camera goes where she goes.
+- **Wait** means the camera stops and she carries on, or doesn't.
+- **Call back** means she turns around and comes toward the camera.
+
+A side-on view cannot express any of that. It shows a dog moving across a
+picture; this shows a dog you are walking with.
+
+### 15A.2 The follow camera
+
+The camera trails her with easing, never rigidly locked. She can draw ahead,
+lag, or drift to one side of frame, and the camera catches up — the small
+distance between her and the centre of frame is itself information about whether
+she is pulling away or hanging back.
+
+Two motions:
+
+- **Advance.** Walking down the trail moves the world toward the camera. The
+  trail recedes ahead; near foliage passes and grows.
+- **Yaw.** When she leaves the trail, the camera *turns to follow her*. The world
+  pans horizontally. This is what makes an off-trail investigation feel like the
+  player physically turning to watch, rather than a cut.
+
+Yaw requires the environment to extend beyond the portrait viewport, which is
+why environment plates are authored wide and cropped (§15A.4).
+
+### 15A.3 What her orientation means
+
+Her facing is a communication channel, and the most legible one at phone size.
+It says more, faster, than any facial expression can at this scale.
+
+| Orientation | What it means | When |
+| --- | --- | --- |
+| **Away** (rear view, centred) | absorbed, going somewhere, content to lead | ordinary walking |
+| **Away, angled** | turning, choosing a direction, drifting toward something | approaching a junction or a scent |
+| **Glancing back over her shoulder** | checking in — *the* dog gesture | before acting on something; when she expects to be recalled |
+| **Facing you** | she wants something, or she is waiting on you | asking, waiting, being recalled, hesitating |
+| **Side on** | her attention is off-trail, not on you | investigating a scent, watching an animal, refusing a crossing |
+| **Sitting, facing you** | settled, waiting, at home | home, rest, an explicit wait |
+
+The glance-back deserves emphasis. §9 describes a dog who checks with the player
+before acting when she expects to be recalled — that behaviour already exists in
+the simulation (`look_at_player`), and until now it had no visual form. In this
+camera it becomes the single most readable moment in the game.
+
+**Consequence for the expressed emotion set (§6.3).** The four portraits remain
+the emotional vocabulary, but they are largely *invisible in the world view* —
+from behind, there is no face. Emotion therefore reads through orientation,
+posture, tail and gait first, and through the face only when she turns toward
+the camera or the camera closes in. This strengthens rather than weakens §6.3's
+position that fear needs no dedicated portrait.
+
+### 15A.4 Environment authoring
+
+Each location is a **trail corridor seen in perspective**, not a backdrop.
+
+**Revised 2026-08-26 — layered plates are not sufficient.** Scaling a plate
+toward the camera is a *zoom*, not travel: the same trees simply get bigger, and
+within a few seconds it is obvious you are not going anywhere. Nothing that
+reuses one fixed image can survive ten seconds of walking. The corridor is built
+from three parts instead:
+
+| Part | What it is | Motion |
+| --- | --- | --- |
+| **backdrop** | one wide plate: canopy, hazy distant trunks | yaws only, never advances |
+| **ground** | a real 3D plane under the camera, tiling texture | scrolls — genuine forward travel |
+| **scenery** | individual trunks, ferns, logs, stumps as sprites | each placed at a real (x, z), swept past and recycled |
+
+Scenery is the load-bearing part. Every item has a position in a virtual
+corridor; as the camera advances its `z` decreases, it grows by true
+perspective, sweeps past and is recycled to the far end with a new kind,
+position and size. Nothing repeats on a fixed period, so a walk can run
+indefinitely.
+
+One projection serves everything on the trail — scenery, Molly, and any later
+encounter — so nothing can disagree about where the ground is. Depth sorting is
+derived from `z`, which means a fern two metres away occludes her at two and a
+half without either knowing about the other. **That occlusion is what puts her
+in the park rather than on top of it**, and no amount of shadow or grading
+substitutes for it.
+
+Camera geometry is solved against one fixed point: Molly at a comfortable
+following distance is about 54 px wide in a 375 px viewport with her feet around
+three quarters down the frame. A true adult eye height cannot satisfy that — the
+ground close to a standing adult is very low in frame — so the camera sits at
+about a metre, nearer the dog's own world.
+
+### 15A.5 What this supersedes
+
+- The world view is no longer a side-on stage. §15's layout still holds — world
+  view dominant, minimal persistent UI, contextual action bar at the bottom —
+  but the world view itself is a trail ahead, not a proscenium.
+- §28's rendering options still apply; the layered plates and the follow camera
+  are achievable in DOM/CSS for the prototype and are the natural point at which
+  Canvas becomes worthwhile.
+- Character art must be specified by **orientation first**, expression second.
+  The side view is now the exception rather than the default pose.
+
+---
+
 ## 16. Visual Direction
 
 ### Resolved: naturalist field guide
@@ -918,6 +1032,8 @@ style anchor or a person, not a prompt.
 - Molly Mae is a straight-coat copper labradoodle, on-model per §6.0
 - she wears no collar, harness or tags — matching the character sheet
 - the four expressed emotion states of §6.3, and no more
+- **every asset is specified by orientation first (§15A.3)**; environments are
+  trail corridors in perspective, authored as layered plates (§15A.4)
 
 **Deliberate exception.** Dog-perception treatment (§16.4) may leave naturalism, because
 scent has no naturalistic appearance. It should read as something added to an otherwise
@@ -1000,6 +1116,13 @@ Findings worth keeping, because they will recur on every future asset:
    §16.1.
 
 `bakeoff.html` is retained as the record of this decision.
+
+**Superseded by §15A.** The bake-off produced a side-on walk, a front-facing sit
+and four front portraits. Under the follow camera these are reference art and a
+partial asset set, not the shipping set: the side view is now the *off-trail
+exception*, the front-facing sit still serves, and the portraits apply only when
+she turns toward the camera or the camera closes in. The orientation set in
+§15A.3 is the real specification.
 
 ### 16.4 Dog perception treatment
 
@@ -1423,6 +1546,17 @@ This keeps the UI accessible and simple while allowing a richer animated scene.
 
 The first playable prototype can begin with Option A and migrate the world layer to Canvas without changing the simulation architecture.
 
+### Under the follow camera (§15A)
+
+The layered plates and the follow camera are both achievable in Option A —
+three absolutely positioned images per location, transformed together, is
+ordinary CSS. That is the right way to prove the framing.
+
+Option B becomes worthwhile at the point where the camera needs to advance
+*continuously* along a trail rather than crossfade between segments, or where
+foliage must respond to her passing (§16.2). Neither is required to validate the
+staging.
+
 ---
 
 ## 29. Mobile Requirements
@@ -1629,22 +1763,43 @@ library; `assets/naturalist/` and `assets/painted/` are retained as the decision
 Asset pipeline lives in `art/` — one `art.json` per style, driving the spriteforge scripts.
 `art/naturalist/art.json` is now the live config for all new Molly Mae art.
 
-### Phase 1 — Simulation prototype
+### Phase 1 — Simulation prototype ✅ complete (2026-08-26)
 
-No LLM.
+No LLM. All implemented and running:
 
-Implement:
+- state tree with pure reducer transitions (`js/state.js`)
+- needs and drives (`js/dog/needs.js`)
+- utility behaviour selection with a full decision trace (`js/dog/utility.js`)
+- three locations and their spots (`js/world/places.js`)
+- contextual actions, 3–5, context-derived (`js/ui/actions.js`)
+- place / event / stimulus memory with decay and consolidation (`js/dog/memory.js`)
+- the dog's model of the player (`js/dog/learning.js`)
+- IndexedDB save/load with schema versioning (`js/storage.js`)
+- the dog inspector (`js/ui/debug.js`)
 
-- state tree
-- needs
-- drives
-- utility behavior
-- three locations
-- contextual actions
-- memory
-- save/load
+Visuals use the Phase 0 sprite set over placeholder backdrops cropped from the
+concept art. Home has no art of its own yet.
 
-Use simple placeholder visuals.
+**Both headline scenarios are covered by automated tests** (`./test/run.sh`,
+12 seeds): the §32 memory scenario and the §3 crossing arc. They assert causal
+links rather than fixed outcomes — discovery is uncertain by design, so the
+test requires that a memory-driven pull appears *if and only if* something
+actually happened there.
+
+#### Model corrections found by those tests
+
+Recorded because each is a trap that is easy to reintroduce:
+
+- **Fear must not compound.** Retreat records no memory; the startle is the
+  memory. When retreat wrote a negative event, repeated retreats consolidated
+  into a stronger `frightening` association and fear outran any encouragement.
+- **A successful crossing must outweigh a fright**, or patient play cannot win.
+  Frights also taper as a place becomes safe and familiar.
+- **`head_home` is not autonomously selectable.** A frightened dog ending the
+  walk on her own violates §2.1 and strands the boardwalk arc.
+- **Crossing is repeatable**; `hasCrossed` only records the first success.
+- **She must be able to navigate to what she needs**, or a fed dog never
+  reaches her bowl and a walk never progresses.
 
 ### Phase 2 — Relationship prototype
 
@@ -1764,6 +1919,12 @@ Questions to resolve through prototyping rather than upfront specification:
 - How much authored narrative should exist alongside emergent events?
 - Should recurring human and animal characters also have persistent models?
 - How much can weather alter scent and behavior?
+- How far can the camera yaw off-trail before the environment plates run out,
+  and does an off-trail investigation need its own framing rather than a pan?
+- Does advancing along a trail read better as crossfaded segments or as
+  continuous motion — and does the answer force Canvas (§28)?
+- How often should she glance back? It is the most legible gesture available
+  (§15A.3), which makes it both valuable and easy to overuse.
 - Should commands such as recall be guaranteed actions, trained abilities, or probabilistic behaviors?
 
 ### Closed since the last revision

@@ -47,6 +47,120 @@
       "naming": "molly-body-{frame}",
       "split": 2,
       "size": "1536x1024"
+    },
+    "orient": {
+      "frames": [
+        "away",
+        "glance",
+        "facing",
+        "turning"
+      ],
+      "poses": {
+        "away": "seen from DIRECTLY BEHIND, walking away from the viewer down a trail. We see her back, her rump and her hind legs, the back of her head and the back of both floppy ears, and her tail raised in a relaxed curve. Her face is completely hidden -- NO part of her face, muzzle or eyes is visible. A rear view.",
+        "glance": "seen from BEHIND, walking away from the viewer, but her head is turned back over her shoulder to look directly at us. We see her back, rump and tail from behind, and her face in three-quarter view looking back over her shoulder toward the viewer. Her body still points away; only the head is turned.",
+        "facing": "standing squarely FACING the viewer head-on, front view, looking directly at us, all four legs visible, her chest and pale beard toward the camera, tail visible behind her",
+        "turning": "seen from behind at a three-quarter angle, her body angled away to her own left as if turning off the trail. We see her back and one flank and the back of her head, with just the edge of her muzzle visible past her cheek. Mostly a rear view, slightly turned."
+      },
+      "framing": "Full body, the whole dog visible, paws resting on an invisible ground line at the very bottom edge of the figure. Four dogs in one evenly spaced row on a plain white background, all at the same scale, all lit identically from the upper left. The SAME individual dog in every frame: identical straight (never curly) reddish-copper coat, identical pale cream beard and muzzle, identical build and identical scale. Her ears ALWAYS hang downward, floppy and close against the head -- never pricked, never upright. She wears NOTHING: no collar, no harness, no leash, no tag.",
+      "sheet": "molly-orient",
+      "naming": "molly-{frame}",
+      "split": 4,
+      "size": "1536x1024",
+      "cutout": {
+        "threshold": 210
+      }
+    },
+    "plate_far": {
+      "frames": [],
+      "transparent": false,
+      "framing": "A trail corridor seen in PERSPECTIVE from a walker's eye height, looking straight down the trail as it recedes away from the viewer toward a vanishing point. The trail runs from the bottom centre of the frame into the distance. Wide landscape composition with plenty of forest to the left and right of the trail, so the view can pan sideways. This is the DISTANT layer: everything is middle-distance and far away, softened by atmospheric haze. Nothing in the immediate foreground. Pacific Spirit Regional Park, a coastal temperate rainforest: towering western red cedar and hemlock trunks, dense sword fern understory, moss, soft dappled light through a high canopy. Deep forest greens, mossy olive, cedar brown, wet earth. No people, no animals, no dogs, no text, no signs.",
+      "sheet": "plate-{name}-far",
+      "naming": "plate-{name}-far",
+      "size": "1536x1024"
+    },
+    "plate_near": {
+      "frames": [],
+      "framing": "FOREGROUND FOLIAGE ONLY in a TALL VERTICAL PORTRAIT frame. Large sword fern fronds and low salal leaves crowd in from the LEFT EDGE and the RIGHT EDGE of the frame, and a few fronds intrude from the BOTTOM CORNERS. They are very close to the camera, cropped by the frame edges, slightly out of focus. The ENTIRE CENTRE AND UPPER MIDDLE of the frame is COMPLETELY EMPTY -- a wide clear vertical channel straight up the middle with absolutely no foliage in it. These are the nearest plants a walker would brush past on either side of a trail. Pacific Spirit Regional Park, a coastal temperate rainforest: sword fern, salal, moss. Deep forest greens and mossy olive. No trail, no ground, no people, no animals, no text.",
+      "sheet": "plate-{name}-near",
+      "naming": "plate-{name}-near",
+      "size": "1024x1536",
+      "cutout": {
+        "threshold": 215
+      }
+    },
+    "trunks": {
+      "frames": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "poses": {
+        "a": "a massive western red cedar trunk, deeply furrowed reddish-brown bark, moss up one side",
+        "b": "a tall straight hemlock trunk, greyer smoother bark, a few small dead branch stubs",
+        "c": "a mossy cedar trunk with a flared buttressed base and thick moss to head height",
+        "d": "a slender young hemlock trunk with sparse lower branches"
+      },
+      "framing": "Four separate tree trunks standing in a row, seen straight on at eye level. Each trunk is a VERTICAL COLUMN that runs off the TOP of the frame and off the BOTTOM of the frame -- cropped at both ends, no treetop and no root ball visible, just the length of trunk. Tall and narrow. Pacific Spirit Regional Park, coastal temperate rainforest. Deep forest greens, mossy olive, cedar brown, wet earth, bark grey. Soft even daylight from the upper left. Each object is a separate isolated cut-out on a plain flat pure-white background, with a clear empty gap between them. No ground, no shadow on the background, no trail, no people, no animals, no text.",
+      "sheet": "scatter-trunks",
+      "naming": "trunk-{frame}",
+      "split": 4,
+      "size": "1536x1024",
+      "cutout": {
+        "threshold": 212
+      }
+    },
+    "undergrowth": {
+      "frames": [
+        "fern",
+        "salal",
+        "log",
+        "stump"
+      ],
+      "poses": {
+        "fern": "a full clump of sword fern, many arching fronds radiating from a central crown",
+        "salal": "a low dense salal bush, thick oval leathery leaves",
+        "log": "a fallen mossy log lying horizontally, thick moss along its top, one broken end",
+        "stump": "an old cut cedar stump, weathered and mossy, springboard notches in its side"
+      },
+      "framing": "Four separate plants and forest objects in a row, seen straight on at eye level, each resting on an invisible ground line at the very bottom edge of the object. Pacific Spirit Regional Park, coastal temperate rainforest. Deep forest greens, mossy olive, cedar brown, wet earth, bark grey. Soft even daylight from the upper left. Each object is a separate isolated cut-out on a plain flat pure-white background, with a clear empty gap between them. No ground, no shadow on the background, no trail, no people, no animals, no text.",
+      "sheet": "scatter-undergrowth",
+      "naming": "under-{frame}",
+      "split": 4,
+      "size": "1536x1024",
+      "cutout": {
+        "threshold": 212
+      }
+    },
+    "ground": {
+      "frames": [],
+      "transparent": false,
+      "framing": "A TOP-DOWN overhead view looking straight down at the surface of a forest trail: packed damp earth, scattered conifer needles, small stones, fragments of bark, a few fallen leaves, exposed root threads. Flat even lighting with NO strong shadows and NO bright highlights. Completely uniform across the whole image -- no path edges, no plants, no horizon, no perspective, no focal point, just an evenly detailed patch of trail surface filling the frame edge to edge like a material sample. Wet earth browns, bark grey, muted olive. No people, no animals, no text.",
+      "sheet": "ground-{name}",
+      "naming": "ground-{name}",
+      "size": "1024x1024"
+    },
+    "run_away": {
+      "frames": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "poses": {
+        "a": "front legs reaching forward and apart at full extension, hind legs trailing behind, body stretched long and low, tail streaming out",
+        "b": "all four legs gathered under the body mid-bound, back arched upward, body compressed and high",
+        "c": "hind legs driving back and apart at full extension, front legs tucked under the chest, body stretched long, tail up",
+        "d": "legs passing under the body, back level, the moment between strides, tail level"
+      },
+      "framing": "Four frames of a RUN CYCLE, seen from DIRECTLY BEHIND, running away from the viewer down a trail. In every frame we see her back, her rump and her tail from behind, and the back of her head -- NO part of her face is visible. Four dogs in one evenly spaced row on a plain white background. The SAME individual dog in every frame: identical straight (never curly) reddish-copper coat, identical pale cream beard and muzzle, identical build. Her ears ALWAYS hang downward, floppy, never pricked. She wears NOTHING -- no collar, no harness, no tags. CRITICAL: every frame is drawn at EXACTLY the same size and the same distance from the viewer, with her paws on the same invisible ground line, as if traced from the same photograph -- only the legs and body change between frames.",
+      "sheet": "cycle-run-away",
+      "naming": "run-away-{frame}",
+      "split": 4,
+      "size": "1536x1024",
+      "cutout": {
+        "threshold": 212
+      }
     }
   },
   "_anchorDesc": "a mixed reference plate of four unrelated subjects in one row: a sword fern frond, a pileated woodpecker on a trunk, a moss-covered fallen log, and a weathered cedar boardwalk plank"

@@ -1,0 +1,79 @@
+{
+  "canvas": [
+    380,
+    600
+  ],
+  "backFrac": 0.125,
+  "sprites": {
+    "gallop-1": {
+      "file": "gallop-1.png",
+      "scale": 1.3483,
+      "feet": 0.707
+    },
+    "gallop-2": {
+      "file": "gallop-2.png",
+      "scale": 1.3793,
+      "feet": 0.7112
+    },
+    "gallop-3": {
+      "file": "gallop-3.png",
+      "scale": 1.4286,
+      "feet": 0.7274
+    },
+    "gallop-4": {
+      "file": "gallop-4.png",
+      "scale": 1.3483,
+      "feet": 0.5834
+    },
+    "gallop-5": {
+      "file": "gallop-5.png",
+      "scale": 1.3953,
+      "feet": 0.6924
+    },
+    "gallop-6": {
+      "file": "gallop-6.png",
+      "scale": 1.5,
+      "feet": 0.7725
+    },
+    "trot-1": {
+      "file": "trot-1.png",
+      "scale": 1.2766,
+      "feet": 0.6399
+    },
+    "trot-2": {
+      "file": "trot-2.png",
+      "scale": 1.4815,
+      "feet": 0.7299
+    },
+    "trot-3": {
+      "file": "trot-3.png",
+      "scale": 1.4815,
+      "feet": 0.725
+    },
+    "trot-4": {
+      "file": "trot-4.png",
+      "scale": 1.4634,
+      "feet": 0.6957
+    },
+    "walk-1": {
+      "file": "walk-1.png",
+      "scale": 1.1215,
+      "feet": 0.6633
+    },
+    "walk-2": {
+      "file": "walk-2.png",
+      "scale": 1.1538,
+      "feet": 0.6827
+    },
+    "walk-3": {
+      "file": "walk-3.png",
+      "scale": 1.1881,
+      "feet": 0.7012
+    },
+    "walk-4": {
+      "file": "walk-4.png",
+      "scale": 1.2371,
+      "feet": 0.7168
+    }
+  }
+}

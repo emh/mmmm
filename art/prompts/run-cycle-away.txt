@@ -1,0 +1,22 @@
+A four-frame sprite sheet of ONE continuous run cycle, read left to right.
+
+THE ANIMATION: a dog running at a steady lope directly away from the viewer down a trail. Across the four frames her legs pass through exactly one complete stride and arrive back where they began, so the four frames loop seamlessly when played in order.
+
+THE SUBJECT: Molly Mae, a STRAIGHT-HAIRED labradoodle -- flat shaggy coat, NOT curly, NOT wavy, NOT a fleece or curly doodle coat. Warm reddish-copper coat (#925624 to #B47A44) with subtle tonal variation, deepest rust (#7C4019) in the shadowed flanks and sunlit copper edges (#CCA477). A distinctive pale cream shaggy beard and muzzle (#DAD0C2) with warm gray around the mouth (#9C8C7A). Long floppy ears that hang DOWN close against the head and never stand up. Dark nose and warm expressive brown eyes (#4A3D32). Long legs, athletic and sturdy build. A young adult female dog. She wears no collar, no harness and no tags.
+
+VIEW: seen from DIRECTLY BEHIND in every frame. We see her back, her rump, her tail and the back of her head. NO part of her face, muzzle or eyes is ever visible.
+
+IDENTICAL IN ALL FOUR FRAMES -- these must not vary at all:
+- her overall size in the frame; she is exactly the same distance from the viewer throughout
+- the height of her back and shoulders above the ground
+- the shape, thickness and curve of her tail, held in the same position
+- the shape and position of her floppy ears
+- her coat colour, texture and markings
+
+ONLY HER LEGS CHANGE between the frames. Everything above the hips is drawn identically four times.
+
+LAYOUT: four dogs in one evenly spaced row on a plain flat pure-white background, with a clear empty gap between each one, all standing on the same invisible ground line.
+
+STYLE: Detailed naturalistic illustration in the register of a field guide or a national park interpretive sign: careful observed rendering, fine graphite-and-ink linework, visible individual hair strands and coat texture, accurate animal anatomy, soft directional light, restrained natural colour. Warm paper-toned ground. The care and specificity of a naturalist's plate, not a cartoon and not a photograph.
+
+No shadow on the background, no floor, no trail, no scenery, no text, no labels, no watermark.

@@ -1,0 +1,49 @@
+{
+  "canvas": [
+    380,
+    600
+  ],
+  "backFrac": 0.125,
+  "sprites": {
+    "away": {
+      "file": "away.png",
+      "scale": 0.515,
+      "feet": 0.7413
+    },
+    "glance": {
+      "file": "glance.png",
+      "scale": 0.543,
+      "feet": 0.7675
+    },
+    "turning": {
+      "file": "turning.png",
+      "scale": 0.4615,
+      "feet": 0.6688
+    },
+    "facing": {
+      "file": "facing.png",
+      "scale": 0.6283,
+      "feet": 0.8768
+    },
+    "run-1": {
+      "file": "run-1.png",
+      "scale": 0.6218,
+      "feet": 0.8183
+    },
+    "run-2": {
+      "file": "run-2.png",
+      "scale": 0.6316,
+      "feet": 0.7934
+    },
+    "run-3": {
+      "file": "run-3.png",
+      "scale": 0.6283,
+      "feet": 0.8255
+    },
+    "run-4": {
+      "file": "run-4.png",
+      "scale": 0.6417,
+      "feet": 0.7881
+    }
+  }
+}

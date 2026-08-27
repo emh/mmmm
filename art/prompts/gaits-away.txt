@@ -1,0 +1,25 @@
+Create a production-ready 2D sprite sheet of one dog, viewed DIRECTLY FROM BEHIND and moving straight away from the viewer.
+
+Arrange the sheet as three clearly separated horizontal rows, with a wide empty band of background between the rows:
+
+  Row 1 (top):    slow walk  -- 4 sequential frames
+  Row 2 (middle): steady trot -- 4 sequential frames
+  Row 3 (bottom): fast gallop -- 6 sequential frames
+
+Each row is a convincing, seamless looping gait cycle in its own right. The walk is measured and grounded. The trot shows diagonal leg coordination and moderate vertical movement. The gallop includes compression, powerful push-off, full airborne extension, gathered suspension, and landing.
+
+THE DOG: Molly Mae, a STRAIGHT-HAIRED labradoodle -- flat shaggy coat, NOT curly, NOT wavy, NOT a fleece or curly doodle coat. Warm reddish-copper coat (#925624 to #B47A44) with subtle tonal variation, deepest rust (#7C4019) in the shadowed flanks and sunlit copper edges (#CCA477). A distinctive pale cream shaggy beard and muzzle (#DAD0C2) with warm gray around the mouth (#9C8C7A). Long floppy ears that hang DOWN close against the head and never stand up. Dark nose and warm expressive brown eyes (#4A3D32). Long legs, athletic and sturdy build. A young adult female dog. She wears no collar, no harness and no tags.
+
+PRESERVE HER IDENTITY IN EVERY FRAME of every row -- same breed, body proportions, reddish-copper colouring, coat texture, floppy ears, shaggy beard, leg length and tail shape. She is shown exclusively from the rear and never turns sideways or looks back; no part of her face is ever visible.
+
+CONSISTENT ACROSS ALL FRAMES AND ALL ROWS:
+- identical square cells, evenly spaced
+- the same scale; she is the same distance from the viewer throughout
+- centred within every cell, aligned to the same ground line within her row
+- fully visible, never cropped
+
+Natural changes in body height, leg position, ear movement, coat movement and tail motion are expected -- but her anatomy and her volume stay the same.
+
+STYLE: Detailed naturalistic illustration in the register of a field guide or a national park interpretive sign: careful observed rendering, fine graphite-and-ink linework, visible individual hair strands and coat texture, accurate animal anatomy, soft directional light, restrained natural colour. Warm paper-toned ground. The care and specificity of a naturalist's plate, not a cartoon and not a photograph. A polished, readable silhouette suitable for a game sprite.
+
+Plain flat pure-white background. Do NOT include cell borders, grid lines, labels, text, numbers, scenery, props, extra animals, overlapping frames, perspective changes, cast shadows between cells, or any inconsistency in the character design.

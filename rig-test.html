@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Molly Mae — Rig Bench</title>
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  body { margin:0; background:var(--paper); color:var(--deep-forest-green);
+         font:14px/1.5 ui-monospace,Menlo,monospace; }
+  .wrap { display:grid; grid-template-columns:1fr 300px; gap:24px; padding:20px; align-items:start; }
+  @media (max-width:800px){ .wrap{grid-template-columns:1fr} }
+  #stage { position:relative; background:var(--mist-light); border:1px solid var(--stone-gray);
+           border-radius:4px; overflow:hidden; }
+  #stage.checker {
+    background-image:linear-gradient(45deg,#0002 25%,transparent 25%),linear-gradient(-45deg,#0002 25%,transparent 25%),
+                     linear-gradient(45deg,transparent 75%,#0002 75%),linear-gradient(-45deg,transparent 75%,#0002 75%);
+    background-size:20px 20px; background-position:0 0,0 10px,10px -10px,-10px 0;
+  }
+  #dog { width:100%; }
+  .rig { position:relative; width:100%; }
+  .rig-part { position:absolute; display:block; }
+  label { display:block; margin:10px 0 2px; font-size:12px; letter-spacing:.05em; text-transform:uppercase; opacity:.7; }
+  input[type=range]{ width:100%; }
+  .val { float:right; opacity:.6; }
+  button { font:inherit; padding:8px 12px; margin:3px 3px 0 0; border:1px solid currentColor;
+           background:transparent; color:inherit; border-radius:3px; cursor:pointer; }
+  button.on { background:var(--deep-forest-green); color:var(--paper); }
+  h1 { font-size:15px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 4px; }
+  p.note { font-size:12px; opacity:.65; margin:4px 0 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="stage"><div id="dog"></div></div>
+  <div>
+    <h1>Rig Bench</h1>
+    <p class="note">Seam check and pose tuning for the cutout rig. Drive it live,
+      or drag the joints past their working range to see where the seams break.</p>
+
+    <div id="states"></div>
+
+    <label>head rotate <span class="val" id="v-head">0</span></label>
+    <input type="range" id="head" min="-30" max="30" value="0" step="0.5">
+    <label>head lift <span class="val" id="v-lift">0</span></label>
+    <input type="range" id="lift" min="-60" max="60" value="0" step="1">
+    <label>tail rotate <span class="val" id="v-tail">0</span></label>
+    <input type="range" id="tail" min="-45" max="60" value="0" step="0.5">
+    <label>scale <span class="val" id="v-scale">100%</span></label>
+    <input type="range" id="scale" min="20" max="100" value="100" step="5">
+
+    <div style="margin-top:14px">
+      <button id="animate" class="on">animating</button>
+      <button id="checker">checkerboard</button>
+      <button id="outline">show seams</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { loadRig } from "./js/ui/rig.js";
+
+const stage = document.getElementById("stage");
+const rig = await loadRig(document.getElementById("dog"), "assets/molly/rig");
+
+let animating = true;
+let manual = { head: 0, lift: 0, tail: 0 };
+
+const STATES = {
+  neutral: { expressed:"neutral", arousal:.2,  valence:.2,  fear:0,   walking:false },
+  curious: { expressed:"curious", arousal:.65, valence:.3,  fear:.05, walking:false },
+  alert:   { expressed:"alert",   arousal:.8,  valence:-.1, fear:.15, walking:false },
+  happy:   { expressed:"happy",   arousal:.5,  valence:.8,  fear:0,   walking:false },
+  afraid:  { expressed:"alert",   arousal:.7,  valence:-.3, fear:.85, walking:false },
+  walking: { expressed:"neutral", arousal:.4,  valence:.4,  fear:0,   walking:true  },
+  tired:   { expressed:"neutral", arousal:.1,  valence:.1,  fear:0,   walking:false, tired:true },
+};
+const statesEl = document.getElementById("states");
+for (const name of Object.keys(STATES)) {
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.onclick = () => {
+    rig.setPose(STATES[name]);
+    [...statesEl.children].forEach(c => c.classList.toggle("on", c === b));
+  };
+  statesEl.appendChild(b);
+}
+rig.setPose(STATES.neutral);
+statesEl.firstChild.classList.add("on");
+
+// manual joint control
+for (const id of ["head","lift","tail"]) {
+  const el = document.getElementById(id);
+  el.oninput = () => {
+    manual[id] = +el.value;
+    document.getElementById("v-"+id).textContent = el.value;
+    if (!animating) applyManual();
+  };
+}
+document.getElementById("scale").oninput = (e) => {
+  document.getElementById("dog").style.width = e.target.value + "%";
+  document.getElementById("v-scale").textContent = e.target.value + "%";
+};
+
+function applyManual() {
+  const pctY = (v) => (v / rig.manifest.height) * 100;
+  rig.layers.head.style.transform = `translateY(${pctY(manual.lift)}%) rotate(${manual.head}deg)`;
+  rig.layers.tail.style.transform = `rotate(${manual.tail}deg)`;
+  rig.layers.body.style.transform = "";
+}
+
+document.getElementById("animate").onclick = (e) => {
+  animating = !animating;
+  e.target.classList.toggle("on", animating);
+  e.target.textContent = animating ? "animating" : "manual";
+  if (!animating) applyManual();
+};
+document.getElementById("checker").onclick = (e) => {
+  stage.classList.toggle("checker");
+  e.target.classList.toggle("on");
+};
+document.getElementById("outline").onclick = (e) => {
+  const on = e.target.classList.toggle("on");
+  for (const p of document.querySelectorAll(".rig-part")) {
+    p.style.outline = on ? "1px solid rgba(255,0,0,.55)" : "";
+  }
+};
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last)/1000, .1); last = now;
+  if (animating) rig.update(dt);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

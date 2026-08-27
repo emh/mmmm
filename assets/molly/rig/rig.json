@@ -1,0 +1,56 @@
+{
+  "source": "molly-body-walk.png",
+  "width": 923,
+  "height": 691,
+  "parts": {
+    "head": {
+      "file": "head.png",
+      "offset": [
+        0,
+        47
+      ],
+      "size": [
+        312,
+        232
+      ],
+      "pivot": [
+        272,
+        185
+      ],
+      "pivotInSprite": [
+        272,
+        232
+      ]
+    },
+    "tail": {
+      "file": "tail.png",
+      "offset": [
+        736,
+        0
+      ],
+      "size": [
+        172,
+        312
+      ],
+      "pivot": [
+        24,
+        268
+      ],
+      "pivotInSprite": [
+        760,
+        268
+      ]
+    },
+    "body": {
+      "file": "body.png",
+      "offset": [
+        0,
+        0
+      ],
+      "size": [
+        923,
+        691
+      ]
+    }
+  }
+}
