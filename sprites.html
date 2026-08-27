@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Molly Mae — sprites</title>
+<style>
+  :root { --bg:#1b211a; --panel:#232a20; --ink:#dbe3cf; --dim:#8f9a85; --warn:#e0a33c; --bad:#d9663f; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px; background:var(--bg); color:var(--ink);
+         font:13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  h1 { font-size:15px; margin:0 0 4px; letter-spacing:.06em; text-transform:uppercase; }
+  h2 { font-size:13px; margin:34px 0 10px; color:var(--dim);
+       letter-spacing:.08em; text-transform:uppercase; font-weight:400; }
+  .sub { color:var(--dim); margin:0 0 20px; }
+  .bar { position:sticky; top:0; z-index:5; background:var(--bg); padding:10px 0 14px;
+         margin-bottom:6px; border-bottom:1px solid #333c30; display:flex; gap:8px; flex-wrap:wrap; }
+  button { font:inherit; color:var(--ink); background:var(--panel); border:1px solid #3a4434;
+           padding:5px 11px; border-radius:4px; cursor:pointer; }
+  button[aria-pressed="true"] { background:#3c4a34; border-color:#6a7d5c; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; margin-bottom:8px; }
+  .tile { background:var(--panel); border:1px solid #333c30; border-radius:6px; padding:8px; width:132px; }
+  .shot { width:116px; height:116px; display:flex; align-items:center; justify-content:center;
+          border-radius:3px; overflow:hidden; }
+  .shot img { max-width:100%; max-height:100%; display:block; image-rendering:auto; }
+  .name { margin-top:7px; word-break:break-all; }
+  .meta { color:var(--dim); font-size:11px; }
+  .flag { color:var(--bad); font-size:11px; }
+  .tag { display:inline-block; font-size:10px; padding:1px 6px; border-radius:9px;
+         border:1px solid #4a5742; color:var(--dim); margin-left:8px; vertical-align:2px; }
+  .tag.parked { color:var(--warn); border-color:#5d4a24; }
+  /* Backgrounds a sprite can be checked against. White-on-white hides trapped
+     background completely -- that is how it got shipped -- so magenta is here. */
+  .bg-check { background-image:
+      linear-gradient(45deg,#3a4434 25%,transparent 25%,transparent 75%,#3a4434 75%),
+      linear-gradient(45deg,#3a4434 25%,#2a3226 25%,#2a3226 75%,#3a4434 75%);
+      background-size:16px 16px; background-position:0 0,8px 8px; }
+  .bg-magenta { background:#f0f; }
+  .bg-dark { background:#171c15; }
+  .bg-trail { background:#4b4137; }
+  .bg-light { background:#eef0e6; }
+</style>
+</head>
+<body>
+<h1>Molly Mae — sprite inventory</h1>
+<p class="sub" id="summary">reading manifests…</p>
+<p class="sub">A near-white flag is a signal, not a verdict: trapped background
+is neutral white, but bleached driftwood and pale seed heads legitimately are
+too. Check the sprite on magenta and look at the colour before removing anything.</p>
+
+<div class="bar">
+  <button data-bg="check" aria-pressed="true">checker</button>
+  <button data-bg="magenta" aria-pressed="false">magenta</button>
+  <button data-bg="trail" aria-pressed="false">trail</button>
+  <button data-bg="dark" aria-pressed="false">dark</button>
+  <button data-bg="light" aria-pressed="false">light</button>
+</div>
+
+<div id="out"></div>
+
+<script type="module">
+import { CLIPS } from "./js/ui/animator.js";
+import { SCENERY_SETS } from "./js/ui/corridor.js";
+import { PLACES, PARKED } from "./js/world/places.js";
+
+const out = document.querySelector("#out");
+const CYCLES = "assets/molly/cycles/gaits";
+const TRANS = "assets/molly/transitions";
+const SCATTER = "assets/scene/scatter";
+
+/*
+ * Trapped background, measured live.
+ *
+ * Stripping a background floods in from the edges, so anything the subject
+ * encloses -- the gap between her legs -- survives as an island of white in
+ * the middle of the sprite. Strict on lightness AND neutrality: cream fur is
+ * warm, the paper the generator leaves behind is not.
+ */
+function trapped(img) {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  let d;
+  try { d = x.getImageData(0, 0, c.width, c.height).data; } catch { return null; }
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 32) continue;
+    const mn = Math.min(d[i], d[i + 1], d[i + 2]);
+    const mx = Math.max(d[i], d[i + 1], d[i + 2]);
+    if (mn >= 232 && mx - mn <= 14) n++;
+  }
+  return n;
+}
+
+/*
+ * Totals count each FILE once. A sprite can appear in several scenery sets --
+ * the fern is in all three -- and counting it per appearance made the page
+ * report three trapped-background problems where there was one.
+ */
+let totalBytes = 0, totalSprites = 0, totalFlagged = 0;
+const counted = new Set();
+const sized = new Set();
+
+function tile(url, label, note) {
+  const el = document.createElement("div");
+  el.className = "tile";
+  el.innerHTML = `<div class="shot bg-check"></div>
+    <div class="name">${label}</div>
+    <div class="meta"></div><div class="flag"></div>`;
+  const img = new Image();
+  img.alt = label;
+  el.querySelector(".shot").appendChild(img);
+  img.onload = () => {
+    const first = !counted.has(url);
+    if (first) { counted.add(url); totalSprites++; }
+    const white = trapped(img);
+    el.querySelector(".meta").textContent =
+      `${img.naturalWidth}×${img.naturalHeight}` + (note ? `  ${note}` : "");
+    if (white) {
+      if (first) totalFlagged++;
+      el.querySelector(".flag").textContent = `${white} px near-white — check`;
+    }
+    summarise();
+  };
+  img.onerror = () => { el.querySelector(".flag").textContent = "missing"; };
+  img.src = url;
+
+  // Size, so the boot payload is visible next to what it buys.
+  fetch(url, { method: "HEAD" }).then((r) => {
+    const n = +r.headers.get("content-length");
+    if (!n) return;
+    if (!sized.has(url)) { sized.add(url); totalBytes += n; }
+    const m = el.querySelector(".meta");
+    m.textContent += `  ${(n / 1024).toFixed(0)} KB`;
+    summarise();
+  }).catch(() => {});
+  return el;
+}
+
+function summarise() {
+  document.querySelector("#summary").textContent =
+    `${totalSprites} sprites · ${(totalBytes / 1024).toFixed(0)} KB` +
+    (totalFlagged ? ` · ${totalFlagged} with trapped background` : " · no trapped background");
+}
+
+function section(title, tag) {
+  const h = document.createElement("h2");
+  h.textContent = title;
+  if (tag) h.innerHTML += ` <span class="tag ${tag.cls || ""}">${tag.text}</span>`;
+  out.appendChild(h);
+  const row = document.createElement("div");
+  row.className = "row";
+  out.appendChild(row);
+  return row;
+}
+
+const [gaits, trans] = await Promise.all([
+  fetch(`${CYCLES}/sprites.json`).then((r) => r.json()),
+  fetch(`${TRANS}/sprites.json`).then((r) => r.json()),
+]);
+
+// Molly, one section per clip, in the order the animation plays them.
+for (const [dir, man] of [[TRANS, trans], [CYCLES, gaits]]) {
+  const byClip = new Map();
+  for (const [key, sprite] of Object.entries(man.sprites)) {
+    const clip = key.split("-")[0];
+    if (!byClip.has(clip)) byClip.set(clip, []);
+    byClip.get(clip).push([key, sprite]);
+  }
+  for (const [clip, frames] of [...byClip].sort()) {
+    const live = CLIPS.includes(clip);
+    const row = section(`molly · ${clip}`, live
+      ? { text: "in the game" }
+      : { text: "parked — not loaded", cls: "parked" });
+    frames.sort((a, b) => (+(a[0].split("-")[1] || 0)) - (+(b[0].split("-")[1] || 0)));
+    for (const [key, sprite] of frames) {
+      row.appendChild(tile(`${dir}/${sprite.file}`, key,
+        sprite.feet != null ? `feet ${sprite.feet.toFixed(2)}` : ""));
+    }
+  }
+}
+
+// Scenery, grouped by the set that uses it.
+const liveSets = new Set(Object.values(PLACES).map((p) => p.scenery));
+for (const [set, files] of Object.entries(SCENERY_SETS)) {
+  const row = section(`scenery · ${set}`, liveSets.has(set)
+    ? { text: "in the game" }
+    : { text: "parked — no place uses it", cls: "parked" });
+  for (const f of files) row.appendChild(tile(`${SCATTER}/${f}`, f));
+}
+
+// Ground, path and backdrop, per place.
+for (const [label, set, cls] of [["places", PLACES, null], ["parked places", PARKED, "parked"]]) {
+  for (const place of Object.values(set)) {
+    const row = section(`${label} · ${place.id}`,
+      cls ? { text: "parked", cls } : { text: "in the game" });
+    if (place.art) row.appendChild(tile(`assets/scene/${place.art}.jpg`, `${place.art}.jpg`, "backdrop"));
+    if (place.ground) row.appendChild(tile(`assets/scene/ground-${place.ground}.jpg`, `ground-${place.ground}.jpg`, "surface"));
+    if (place.path) row.appendChild(tile(`assets/scene/path-${place.path}.png`, `path-${place.path}.png`, "worn path"));
+  }
+}
+
+for (const b of document.querySelectorAll("[data-bg]")) {
+  b.addEventListener("click", () => {
+    for (const o of document.querySelectorAll("[data-bg]")) o.setAttribute("aria-pressed", String(o === b));
+    for (const s of document.querySelectorAll(".shot")) s.className = `shot bg-${b.dataset.bg}`;
+  });
+}
+</script>
+</body>
+</html>
